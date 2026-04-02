@@ -5,23 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Pass Scanner" />
-  <title>Restroom Pass Scanner</title>
+  <meta name="apple-mobile-web-app-title" content="Pass Manager" />
+  <title>Restroom Pass Manager</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    /* ── Green theme (default — no one out) ── */
     :root {
-      --page-bg:       #EEF2FF;
+      --page-bg:       #f0fdf4;
       --card-bg:       #ffffff;
-      --card-bg2:      #F5F3FF;
-      --accent:        #7C3AED;
-      --accent-light:  #EDE9FE;
-      --accent-dark:   #5B21B6;
-      --accent2:       #EC4899;
-      --text:          #1E1B4B;
-      --text-muted:    #6B7280;
-      --border:        rgba(124,58,237,0.1);
-      --border-med:    rgba(124,58,237,0.22);
+      --card-bg2:      #f0fdf4;
+      --accent:        #16a34a;
+      --accent-light:  #dcfce7;
+      --accent-dark:   #15803d;
+      --accent2:       #4ade80;
+      --text:          #14532d;
+      --text-muted:    #6b7280;
+      --border:        rgba(22,163,74,0.12);
+      --border-med:    rgba(22,163,74,0.28);
       --radius-md:     12px;
       --radius-lg:     18px;
       --radius-xl:     24px;
@@ -34,25 +35,43 @@
       --danger-bg:     #FFF1F2;
       --danger-text:   #BE123C;
       --danger-border: #FB7185;
-      --grad-main:     linear-gradient(135deg, #7C3AED, #EC4899);
-      --grad-start:    linear-gradient(135deg, #6D28D9, #7C3AED);
-      --shadow-card:   0 4px 20px rgba(124,58,237,0.10);
-      --shadow-btn:    0 2px 10px rgba(124,58,237,0.25);
+      --grad-main:     linear-gradient(135deg, #16a34a, #4ade80);
+      --grad-start:    linear-gradient(135deg, #15803d, #16a34a);
+      --shadow-card:   0 4px 20px rgba(22,163,74,0.10);
+      --shadow-btn:    0 2px 10px rgba(22,163,74,0.30);
+    }
+
+    /* ── Red theme (someone is checked out) ── */
+    body.state-out {
+      --page-bg:       #fff1f2;
+      --card-bg:       #ffffff;
+      --card-bg2:      #fff1f2;
+      --accent:        #dc2626;
+      --accent-light:  #fee2e2;
+      --accent-dark:   #991b1b;
+      --accent2:       #f87171;
+      --text:          #450a0a;
+      --border:        rgba(220,38,38,0.12);
+      --border-med:    rgba(220,38,38,0.28);
+      --grad-main:     linear-gradient(135deg, #dc2626, #f87171);
+      --grad-start:    linear-gradient(135deg, #991b1b, #dc2626);
+      --shadow-card:   0 4px 20px rgba(220,38,38,0.10);
+      --shadow-btn:    0 2px 10px rgba(220,38,38,0.30);
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --page-bg:      #0F0A1E;
-        --card-bg:      #1A1332;
-        --card-bg2:     #150F2A;
-        --accent:       #A78BFA;
-        --accent-light: #2D1F5E;
-        --accent-dark:  #C4B5FD;
-        --accent2:      #F472B6;
-        --text:         #EDE9FE;
-        --text-muted:   #8B7DB5;
-        --border:       rgba(167,139,250,0.12);
-        --border-med:   rgba(167,139,250,0.25);
+        --page-bg:      #052e16;
+        --card-bg:      #0f2d1f;
+        --card-bg2:     #0a2418;
+        --accent:       #4ade80;
+        --accent-light: #14532d;
+        --accent-dark:  #86efac;
+        --accent2:      #86efac;
+        --text:         #f0fdf4;
+        --text-muted:   #6b7280;
+        --border:       rgba(74,222,128,0.12);
+        --border-med:   rgba(74,222,128,0.28);
         --out-bg:       #431407;
         --out-text:     #FDBA74;
         --out-border:   #C2410C;
@@ -62,10 +81,26 @@
         --danger-bg:    #4C0519;
         --danger-text:  #FDA4AF;
         --danger-border:#9F1239;
-        --grad-main:    linear-gradient(135deg, #A78BFA, #F472B6);
-        --grad-start:   linear-gradient(135deg, #7C3AED, #A78BFA);
+        --grad-main:    linear-gradient(135deg, #4ade80, #86efac);
+        --grad-start:   linear-gradient(135deg, #16a34a, #4ade80);
         --shadow-card:  0 4px 20px rgba(0,0,0,0.4);
-        --shadow-btn:   0 2px 10px rgba(124,58,237,0.4);
+        --shadow-btn:   0 2px 10px rgba(74,222,128,0.3);
+      }
+      body.state-out {
+        --page-bg:      #4c0519;
+        --card-bg:      #2d0a12;
+        --card-bg2:     #230810;
+        --accent:       #f87171;
+        --accent-light: #7f1d1d;
+        --accent-dark:  #fca5a5;
+        --accent2:      #fca5a5;
+        --text:         #fff1f2;
+        --border:       rgba(248,113,113,0.12);
+        --border-med:   rgba(248,113,113,0.28);
+        --grad-main:    linear-gradient(135deg, #f87171, #fca5a5);
+        --grad-start:   linear-gradient(135deg, #dc2626, #f87171);
+        --shadow-card:  0 4px 20px rgba(0,0,0,0.4);
+        --shadow-btn:   0 2px 10px rgba(248,113,113,0.3);
       }
     }
 
@@ -74,6 +109,7 @@
       background: var(--page-bg);
       color: var(--text);
       min-height: 100vh;
+      transition: background-color 0.5s ease, color 0.5s ease;
     }
 
     #app { max-width: 600px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
@@ -178,7 +214,7 @@
       overflow: hidden; margin-bottom: 1rem;
       border: 2px solid transparent;
       background-clip: padding-box;
-      box-shadow: 0 0 0 2px #7C3AED, 0 0 0 4px #EC4899, var(--shadow-card);
+      box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent2), var(--shadow-card);
     }
     #video { width: 100%; height: 100%; object-fit: cover; display: block; }
     #scan-line {
@@ -219,6 +255,19 @@
     .welcome-time   { font-size: 18px; color: rgba(255,255,255,0.9); margin-bottom: 4px; }
     .welcome-status { font-size: 14px; color: rgba(255,255,255,0.75); margin-top: 8px; }
     .welcome-tap    { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 16px; letter-spacing: 0.04em; }
+
+    /* ── Conflict warning overlay ── */
+    #conflict-overlay {
+      display: none; position: absolute; inset: 0;
+      border-radius: var(--radius-xl); flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 18;
+      background: rgba(153, 27, 27, 0.94);
+    }
+    #conflict-overlay.show { display: flex; }
+    .conflict-icon  { font-size: 42px; margin-bottom: 10px; line-height: 1; }
+    .conflict-msg   { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.4; }
+    .conflict-sub   { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 8px; }
 
     /* ── PIN overlay ── */
     #pin-overlay {
@@ -342,7 +391,7 @@
   <header>
     <div class="header-left">
       <div class="header-titles">
-        <h1>Restroom Pass Scanner</h1>
+        <h1>Restroom Pass Manager</h1>
         <p class="subtitle">Scan a student ID to check out or check in</p>
       </div>
     </div>
@@ -411,6 +460,11 @@
       <div class="welcome-time"  id="welcome-time">Gone 4 min</div>
       <div class="welcome-status" id="welcome-status">Within time limit</div>
       <div class="welcome-tap">Tap to dismiss</div>
+    </div>
+    <div id="conflict-overlay">
+      <div class="conflict-icon">⚠️</div>
+      <div class="conflict-msg">Please ask your teacher<br>for permission to leave</div>
+      <div class="conflict-sub">Someone is already checked out</div>
     </div>
     <div id="pin-overlay">
       <div class="pin-lock">🔒</div>
@@ -671,7 +725,7 @@
       if (savedStatus)   studentStatus = JSON.parse(savedStatus);
       if (savedCheckout) checkoutTimes = JSON.parse(savedCheckout);
     } catch(e) { log = []; studentStatus = {}; checkoutTimes = {}; }
-    updateTable(); updateSavedNote();
+    updateTable(); updateTheme(); updateSavedNote();
   }
 
   function saveToStorage() {
@@ -801,6 +855,17 @@
     lastScanTime = now;
 
     const action = studentStatus[id] !== 'out' ? 'out' : 'in';
+
+    // Check for conflict before updating status
+    let incident = '';
+    if (action === 'out') {
+      const alreadyOut = Object.values(studentStatus).some(v => v === 'out');
+      if (alreadyOut) {
+        incident = 'Someone is already checked out';
+        showConflictWarning();
+      }
+    }
+
     studentStatus[id] = action;
 
     let minsGone = null;
@@ -817,12 +882,14 @@
       date:     new Date().toLocaleDateString(),
       time:     fmt(new Date()),
       id, action,
-      minsGone: minsGone !== null ? minsGone : null
+      minsGone: minsGone !== null ? minsGone : null,
+      incident
     };
 
     log.unshift(entry);
     saveToStorage();
     updateTable();
+    updateTheme();
 
     // Sync to Google Sheets (non-blocking)
     syncAppendToSheet(entry);
@@ -835,6 +902,18 @@
       if (fromCamera) { flashScreen(); setTimeout(() => stopCamera(), 300); }
       showToast(id + '  🚪 Checked OUT', 'out');
     }
+  }
+
+  function showConflictWarning() {
+    const el = document.getElementById('conflict-overlay');
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 10000);
+  }
+
+  function updateTheme() {
+    const anyOut = Object.values(studentStatus).some(v => v === 'out');
+    document.body.classList.toggle('state-out', anyOut);
   }
 
   /* ═══════════════════════════════
@@ -879,7 +958,7 @@
   function clearLog() {
     if (!confirm('Clear the entire log? This will also clear the Google Sheet if connected.')) return;
     log = []; studentStatus = {}; checkoutTimes = {}; lastScanned = '';
-    saveToStorage(); updateTable();
+    saveToStorage(); updateTable(); updateTheme();
     syncClearSheet();
     closeSettings();
     showToast('Log cleared', 'neutral');
