@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Pass Scanner" />
+  <title>Restroom Pass Scanner</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --page-bg:       #f0edf8;
+      --card-bg:       #ffffff;
+      --card-bg2:      #f7f4fd;
+      --accent:        #a78bda;
+      --accent-light:  #ede8f9;
+      --accent-dark:   #6d4fb5;
+      --text:          #2d2340;
+      --text-muted:    #8878a8;
+      --border:        rgba(167,139,218,0.18);
+      --border-med:    rgba(167,139,218,0.35);
+      --radius-md:     10px;
+      --radius-lg:     16px;
+      --radius-xl:     22px;
+      --out-bg:        #fff3dc;
+      --out-text:      #8a5c00;
+      --out-border:    #f5c842;
+      --in-bg:         #d9f5e8;
+      --in-text:       #1a6b43;
+      --in-border:     #4ecb8a;
+      --danger-bg:     #fce8e8;
+      --danger-text:   #a32d2d;
+      --danger-border: #e88888;
+      --export-bg:     #e6f9ef;
+      --export-text:   #1a6b43;
+      --export-border: #4ecb8a;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --page-bg:      #1a1628;
+        --card-bg:      #241e38;
+        --card-bg2:     #1f1932;
+        --accent:       #9b7fd4;
+        --accent-light: #2e2050;
+        --accent-dark:  #c4aaef;
+        --text:         #eae6f8;
+        --text-muted:   #8878a8;
+        --border:       rgba(155,127,212,0.18);
+        --border-med:   rgba(155,127,212,0.35);
+        --out-bg:       #3d2e00;
+        --out-text:     #fcd97a;
+        --out-border:   #b38a00;
+        --in-bg:        #0d3322;
+        --in-text:      #6ee7b7;
+        --in-border:    #1a6b43;
+        --danger-bg:    #3a1010;
+        --danger-text:  #f7a0a0;
+        --danger-border:#a32d2d;
+        --export-bg:    #0d3322;
+        --export-text:  #6ee7b7;
+        --export-border:#1a6b43;
+      }
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--page-bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    #app { max-width: 600px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
+
+    /* ── Header ── */
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.25rem; }
+    .header-left { display: flex; align-items: center; gap: 10px; }
+    .header-icon { font-size: 28px; line-height: 1; }
+    .header-titles h1 { font-size: 20px; font-weight: 600; color: var(--accent-dark); letter-spacing: -0.01em; }
+    .header-titles .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+
+    /* Sync status dot */
+    #sync-status {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 11px; color: var(--text-muted);
+    }
+    .sync-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .sync-dot.ok      { background: #4ecb8a; }
+    .sync-dot.syncing { background: #f5c842; animation: pulse 1s infinite; }
+    .sync-dot.error   { background: #e24b4a; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    #hamburger {
+      background: var(--card-bg); border: 1.5px solid var(--border-med);
+      border-radius: var(--radius-md); padding: 8px 10px; cursor: pointer;
+      display: flex; flex-direction: column; gap: 4px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #hamburger span { display: block; width: 20px; height: 2px; background: var(--accent-dark); border-radius: 2px; }
+
+    /* ── Settings drawer ── */
+    #settings-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4); z-index: 200;
+      align-items: flex-start; justify-content: flex-end;
+    }
+    #settings-overlay.open { display: flex; }
+    #settings-panel {
+      background: var(--card-bg); width: min(340px, 90vw);
+      min-height: 100vh; padding: 1.5rem 1.25rem 2rem;
+      box-shadow: -4px 0 24px rgba(0,0,0,0.15); overflow-y: auto;
+    }
+    #settings-panel h2 {
+      font-size: 17px; font-weight: 600; color: var(--accent-dark);
+      margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    #close-settings {
+      background: var(--accent-light); border: none; border-radius: var(--radius-md);
+      color: var(--accent-dark); font-size: 18px; width: 32px; height: 32px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; min-width: unset; flex: none;
+    }
+    .setting-group { margin-bottom: 1.5rem; }
+    .setting-label { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+    .setting-desc { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5; }
+    .setting-input-row { display: flex; align-items: center; gap: 8px; }
+    .setting-input-row input[type="number"],
+    .setting-input-row input[type="text"],
+    .setting-input-row input[type="url"] {
+      flex: 1; padding: 8px 10px; border-radius: var(--radius-md);
+      border: 1.5px solid var(--border-med); background: var(--card-bg);
+      color: var(--text); font-size: 14px;
+    }
+    .setting-input-row input[type="number"] { flex: none; width: 80px; text-align: center; }
+    .setting-input-row input:focus { outline: none; border-color: var(--accent); }
+    .setting-unit { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+    .setting-divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+    .setting-section-title { font-size: 12px; font-weight: 600; color: var(--accent-dark); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1rem; }
+    #save-settings {
+      width: 100%; padding: 12px; background: var(--accent);
+      color: #fff; border: none; border-radius: var(--radius-md);
+      font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 0.5rem;
+    }
+    #save-settings:active { transform: scale(0.97); }
+    #test-connection-btn {
+      width: 100%; padding: 10px; background: var(--accent-light);
+      color: var(--accent-dark); border: 1.5px solid var(--accent);
+      border-radius: var(--radius-md); font-size: 14px; font-weight: 500;
+      cursor: pointer; margin-top: 8px;
+    }
+    #test-connection-btn:active { transform: scale(0.97); }
+    #connection-result {
+      font-size: 12px; margin-top: 8px; padding: 8px 10px;
+      border-radius: var(--radius-md); display: none; line-height: 1.5;
+    }
+    #connection-result.ok    { background: var(--in-bg); color: var(--in-text); }
+    #connection-result.error { background: var(--danger-bg); color: var(--danger-text); }
+
+    /* ── Scanner box ── */
+    #scanner-box {
+      position: relative; width: 100%; aspect-ratio: 4/3;
+      background: #0d0a1a; border-radius: var(--radius-xl);
+      overflow: hidden; margin-bottom: 1rem; border: 2px solid var(--border-med);
+    }
+    #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #scan-line {
+      position: absolute; left: 8%; width: 84%; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      top: 50%; animation: scan 2s ease-in-out infinite; opacity: 0; pointer-events: none;
+    }
+    #scan-line.active { opacity: 1; }
+    @keyframes scan { 0%,100% { top: 22%; } 50% { top: 78%; } }
+    .corner { position: absolute; width: 22px; height: 22px; border-color: var(--accent); border-style: solid; opacity: 0.7; pointer-events: none; }
+    .corner.tl { top: 14px; left: 14px; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+    .corner.tr { top: 14px; right: 14px; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+    .corner.bl { bottom: 30px; left: 14px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+    .corner.br { bottom: 30px; right: 14px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+    #overlay-msg {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      text-align: center; color: #fff; font-size: 13px;
+      background: rgba(13,10,26,0.65); padding: 8px 0;
+    }
+    #scan-flash {
+      position: absolute; inset: 0; background: rgba(167,139,218,0.3);
+      opacity: 0; pointer-events: none; transition: opacity 0.15s;
+    }
+    #scan-flash.flash { opacity: 1; }
+
+    /* ── Welcome overlay ── */
+    #welcome-overlay {
+      display: none; position: absolute; inset: 0;
+      border-radius: var(--radius-xl); flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 10; cursor: pointer;
+    }
+    #welcome-overlay.show { display: flex; }
+    #welcome-overlay.ok   { background: rgba(16,100,58,0.93); }
+    #welcome-overlay.late { background: rgba(140,30,30,0.93); }
+    .welcome-emoji  { font-size: 48px; margin-bottom: 8px; line-height: 1; }
+    .welcome-name   { font-size: 26px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .welcome-time   { font-size: 18px; color: rgba(255,255,255,0.9); margin-bottom: 4px; }
+    .welcome-status { font-size: 14px; color: rgba(255,255,255,0.75); margin-top: 8px; }
+    .welcome-tap    { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 16px; letter-spacing: 0.04em; }
+
+    /* ── Buttons ── */
+    .btn-row { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
+    button {
+      flex: 1; padding: 11px 12px; border-radius: var(--radius-md);
+      border: 1.5px solid var(--border-med); background: var(--card-bg);
+      color: var(--text); font-size: 14px; cursor: pointer; min-width: 80px;
+      font-weight: 500; -webkit-tap-highlight-color: transparent; transition: transform 0.1s;
+    }
+    button:active { transform: scale(0.96); }
+    #start-btn  { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
+    #export-btn { background: var(--export-bg); color: var(--export-text); border-color: var(--export-border); }
+    #clear-btn  { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-border); }
+
+    /* ── Manual entry ── */
+    .manual-row { display: flex; gap: 8px; margin-bottom: 1.25rem; }
+    .manual-row input {
+      flex: 1; padding: 10px 14px; border-radius: var(--radius-md);
+      border: 1.5px solid var(--border-med); background: var(--card-bg);
+      color: var(--text); font-size: 16px;
+    }
+    .manual-row input::placeholder { color: var(--text-muted); }
+    .manual-row input:focus { outline: none; border-color: var(--accent); }
+    .manual-row button { flex: 0 0 72px; background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
+
+    /* ── Stats ── */
+    .stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 1.25rem; }
+    .stat-card { background: var(--card-bg); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 12px 10px; text-align: center; }
+    .stat-total    { border-color: var(--accent); }
+    .stat-out-card { border-color: var(--out-border); }
+    .stat-in-card  { border-color: var(--in-border); }
+    .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .stat-val { font-size: 28px; font-weight: 600; color: var(--text); }
+    .stat-total .stat-val   { color: var(--accent-dark); }
+    .stat-out-card .stat-val { color: var(--out-text); }
+    .stat-in-card .stat-val  { color: var(--in-text); }
+
+    /* ── Log ── */
+    #log-section h2 { font-size: 15px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .saved-note { font-size: 11px; color: var(--text-muted); font-weight: 400; }
+    .log-wrapper { background: var(--card-bg); border: 1.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+    #log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    #log-table th {
+      text-align: left; padding: 9px 10px; color: var(--text-muted); font-weight: 500;
+      border-bottom: 1px solid var(--border); background: var(--card-bg2);
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    #log-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); }
+    #log-table tr:last-child td { border-bottom: none; }
+    #log-table tbody tr:first-child td { animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .badge-out  { background: var(--out-bg); color: var(--out-text); }
+    .badge-in   { background: var(--in-bg);  color: var(--in-text); }
+    .badge-late { background: var(--danger-bg); color: var(--danger-text); }
+    .mins-cell { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+    .mins-over { color: var(--danger-text); font-weight: 600; }
+    #empty-msg { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 13px; }
+
+    /* ── Toast ── */
+    .toast {
+      position: fixed; top: 1.25rem; left: 50%; transform: translateX(-50%);
+      background: var(--card-bg); border: 1.5px solid var(--border-med);
+      border-radius: var(--radius-lg); padding: 12px 24px;
+      font-size: 15px; font-weight: 600; color: var(--text);
+      opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 999; white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="header-left">
+      <span class="header-icon">🚪</span>
+      <div class="header-titles">
+        <h1>Restroom Pass Scanner</h1>
+        <p class="subtitle">Scan a student ID to check out or check in</p>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div id="sync-status">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-label">no sheet</span>
+      </div>
+      <button id="hamburger" onclick="openSettings()" aria-label="Settings">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Settings drawer -->
+  <div id="settings-overlay" onclick="overlayClick(event)">
+    <div id="settings-panel">
+      <h2>Settings <button id="close-settings" onclick="closeSettings()">✕</button></h2>
+
+      <div class="setting-section-title">Behavior</div>
+
+      <div class="setting-group">
+        <div class="setting-label">Max time away</div>
+        <div class="setting-desc">Students gone longer than this are flagged when they return.</div>
+        <div class="setting-input-row">
+          <input type="number" id="setting-max-time" inputmode="numeric" pattern="[0-9]*" min="1" max="60" value="15" />
+          <span class="setting-unit">minutes</span>
+        </div>
+      </div>
+
+      <hr class="setting-divider" />
+      <div class="setting-section-title">Google Sheets sync</div>
+
+      <div class="setting-group">
+        <div class="setting-label">Web App URL</div>
+        <div class="setting-desc">Paste the URL from your deployed Google Apps Script here. Every scan will be written to your sheet automatically.</div>
+        <div class="setting-input-row">
+          <input type="url" id="setting-sheet-url" placeholder="https://script.google.com/macros/s/…/exec" />
+        </div>
+      </div>
+
+      <button id="test-connection-btn" onclick="testConnection()">Test connection</button>
+      <div id="connection-result"></div>
+
+      <br/>
+      <button id="save-settings" onclick="saveSettings()">Save settings</button>
+    </div>
+  </div>
+
+  <!-- Scanner -->
+  <div id="scanner-box">
+    <video id="video" playsinline autoplay muted></video>
+    <div id="scan-line"></div>
+    <div id="scan-flash"></div>
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <div id="overlay-msg">Camera off — tap Start Scanning</div>
+    <div id="welcome-overlay" onclick="dismissWelcome()">
+      <div class="welcome-emoji" id="welcome-emoji">✅</div>
+      <div class="welcome-name"  id="welcome-name">Student ID</div>
+      <div class="welcome-time"  id="welcome-time">Gone 4 min</div>
+      <div class="welcome-status" id="welcome-status">Within time limit</div>
+      <div class="welcome-tap">Tap to dismiss</div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button id="start-btn" onclick="toggleCamera()">Start scanning</button>
+    <button id="export-btn" onclick="exportCSV()">Export CSV</button>
+    <button id="clear-btn" onclick="clearLog()">Clear log</button>
+  </div>
+
+  <div class="manual-row">
+    <input id="manual-input" type="number" inputmode="numeric" pattern="[0-9]*"
+           placeholder="Enter student ID manually…"
+           onkeydown="if(event.key==='Enter')manualLog()" />
+    <button onclick="manualLog()">Log</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card stat-total">
+      <div class="stat-label">Total scans</div>
+      <div class="stat-val" id="stat-total">0</div>
+    </div>
+    <div class="stat-card stat-out-card">
+      <div class="stat-label">Out now</div>
+      <div class="stat-val" id="stat-out">0</div>
+    </div>
+    <div class="stat-card stat-in-card">
+      <div class="stat-label">Returned</div>
+      <div class="stat-val" id="stat-in">0</div>
+    </div>
+  </div>
+
+  <div id="log-section">
+    <h2>Activity log <span class="saved-note" id="saved-note"></span></h2>
+    <div class="log-wrapper">
+      <table id="log-table">
+        <thead><tr><th>Time</th><th>Student ID</th><th>Action</th><th>Mins</th></tr></thead>
+        <tbody id="log-body">
+          <tr><td colspan="4" id="empty-msg">No scans yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
+<script>
+  /* ── Storage keys ── */
+  const STORAGE_KEY  = 'restroom_pass_log';
+  const STATUS_KEY   = 'restroom_pass_status';
+  const CHECKOUT_KEY = 'restroom_checkout_times';
+  const SETTINGS_KEY = 'restroom_settings';
+
+  /* ── Runtime state ── */
+  let cameraOn      = false;
+  let codeReader    = null;
+  let lastScanned   = '';
+  let lastScanTime  = 0;
+  let log           = [];
+  let studentStatus = {};
+  let checkoutTimes = {};
+  let settings      = { maxMinutes: 15, sheetUrl: '' };
+
+  /* ═══════════════════════════════
+     SETTINGS
+  ═══════════════════════════════ */
+  function loadSettings() {
+    try {
+      const s = localStorage.getItem(SETTINGS_KEY);
+      if (s) settings = Object.assign(settings, JSON.parse(s));
+    } catch(e) {}
+    document.getElementById('setting-max-time').value  = settings.maxMinutes;
+    document.getElementById('setting-sheet-url').value = settings.sheetUrl || '';
+    updateSyncIndicator();
+  }
+
+  function saveSettings() {
+    settings.maxMinutes = parseInt(document.getElementById('setting-max-time').value) || 15;
+    settings.sheetUrl   = document.getElementById('setting-sheet-url').value.trim();
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
+    updateSyncIndicator();
+    closeSettings();
+    showToast('Settings saved', 'neutral');
+  }
+
+  function openSettings()  { document.getElementById('settings-overlay').classList.add('open'); }
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
+    document.getElementById('connection-result').style.display = 'none';
+  }
+  function overlayClick(e) {
+    if (e.target === document.getElementById('settings-overlay')) closeSettings();
+  }
+
+  /* ═══════════════════════════════
+     GOOGLE SHEETS SYNC
+  ═══════════════════════════════ */
+
+  /* Update the header sync dot */
+  function updateSyncIndicator(state) {
+    const dot   = document.getElementById('sync-dot');
+    const label = document.getElementById('sync-label');
+    if (!settings.sheetUrl) {
+      dot.className = 'sync-dot';
+      label.textContent = 'no sheet';
+      return;
+    }
+    if (state === 'syncing') {
+      dot.className = 'sync-dot syncing';
+      label.textContent = 'syncing…';
+    } else if (state === 'error') {
+      dot.className = 'sync-dot error';
+      label.textContent = 'sync error';
+    } else {
+      dot.className = 'sync-dot ok';
+      label.textContent = 'sheet linked';
+    }
+  }
+
+  /* Post a single entry to the sheet — fire and forget, never blocks the UI */
+  async function syncAppendToSheet(entry) {
+    if (!settings.sheetUrl) return;
+    updateSyncIndicator('syncing');
+    try {
+      await fetch(settings.sheetUrl, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'append', entry })
+      });
+      updateSyncIndicator('ok');
+    } catch(e) {
+      updateSyncIndicator('error');
+      // Silent fail — data is safe in localStorage
+    }
+  }
+
+  /* Tell the sheet to clear all rows — called alongside local clearLog() */
+  async function syncClearSheet() {
+    if (!settings.sheetUrl) return;
+    updateSyncIndicator('syncing');
+    try {
+      await fetch(settings.sheetUrl, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'clear' })
+      });
+      updateSyncIndicator('ok');
+    } catch(e) {
+      updateSyncIndicator('error');
+    }
+  }
+
+  /* Test connection button in settings */
+  async function testConnection() {
+    const url = document.getElementById('setting-sheet-url').value.trim();
+    const res = document.getElementById('connection-result');
+    res.style.display = 'none';
+
+    if (!url) {
+      res.className = 'error';
+      res.textContent = 'Please enter a Web App URL first.';
+      res.style.display = 'block';
+      return;
+    }
+
+    res.className = '';
+    res.textContent = 'Testing…';
+    res.style.display = 'block';
+
+    try {
+      const response = await fetch(url + '?action=read', { method: 'GET' });
+      const json     = await response.json();
+      if (json.ok) {
+        res.className   = 'ok';
+        res.textContent = 'Connected! Sheet is accessible and ready.';
+      } else {
+        res.className   = 'error';
+        res.textContent = 'Sheet responded but returned an error: ' + (json.error || 'unknown');
+      }
+    } catch(e) {
+      res.className   = 'error';
+      res.textContent = 'Could not reach the sheet. Check the URL and make sure the script is deployed as "Anyone" access.';
+    }
+  }
+
+  /* ═══════════════════════════════
+     LOCAL STORAGE
+  ═══════════════════════════════ */
+  function loadFromStorage() {
+    try {
+      const savedLog      = localStorage.getItem(STORAGE_KEY);
+      const savedStatus   = localStorage.getItem(STATUS_KEY);
+      const savedCheckout = localStorage.getItem(CHECKOUT_KEY);
+      if (savedLog)      log           = JSON.parse(savedLog);
+      if (savedStatus)   studentStatus = JSON.parse(savedStatus);
+      if (savedCheckout) checkoutTimes = JSON.parse(savedCheckout);
+    } catch(e) { log = []; studentStatus = {}; checkoutTimes = {}; }
+    updateTable(); updateStats(); updateSavedNote();
+  }
+
+  function saveToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY,  JSON.stringify(log));
+      localStorage.setItem(STATUS_KEY,   JSON.stringify(studentStatus));
+      localStorage.setItem(CHECKOUT_KEY, JSON.stringify(checkoutTimes));
+    } catch(e) {}
+    updateSavedNote();
+  }
+
+  function updateSavedNote() {
+    const hasSheet = !!settings.sheetUrl;
+    document.getElementById('saved-note').textContent =
+      log.length > 0 ? (hasSheet ? '(local + sheet)' : '(saved locally)') : '';
+  }
+
+  /* ═══════════════════════════════
+     UI FEEDBACK
+  ═══════════════════════════════ */
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    const colors = { out: '#f5c842', in: '#4ecb8a', neutral: 'rgba(0,0,0,0.15)' };
+    t.style.borderColor = colors[type] || colors.neutral;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2400);
+  }
+
+  function flashScreen() {
+    const f = document.getElementById('scan-flash');
+    f.classList.add('flash');
+    setTimeout(() => f.classList.remove('flash'), 250);
+  }
+
+  function showWelcome(id, minsGone) {
+    const maxMins = settings.maxMinutes;
+    const isLate  = minsGone >= maxMins;
+    const ov      = document.getElementById('welcome-overlay');
+    document.getElementById('welcome-emoji').textContent  = isLate ? '⚠️' : '✅';
+    document.getElementById('welcome-name').textContent   = 'ID: ' + id;
+    document.getElementById('welcome-time').textContent   =
+      minsGone < 1 ? 'Gone less than a minute' :
+      minsGone === 1 ? 'Gone 1 minute' : 'Gone ' + minsGone + ' minutes';
+    document.getElementById('welcome-status').textContent =
+      isLate ? 'Exceeded ' + maxMins + '-minute limit' : 'Within ' + maxMins + '-minute limit';
+    ov.className = 'show ' + (isLate ? 'late' : 'ok');
+    clearTimeout(ov._timer);
+    ov._timer = setTimeout(dismissWelcome, 5000);
+  }
+
+  function dismissWelcome() {
+    const ov = document.getElementById('welcome-overlay');
+    ov.className = '';
+    clearTimeout(ov._timer);
+  }
+
+  /* ═══════════════════════════════
+     TIME HELPERS
+  ═══════════════════════════════ */
+  function fmt(d) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  function minsElapsed(fromMs) {
+    return Math.floor((Date.now() - fromMs) / 60000);
+  }
+
+  /* ═══════════════════════════════
+     CAMERA
+  ═══════════════════════════════ */
+  function stopCamera() {
+    if (codeReader) { codeReader.reset(); codeReader = null; }
+    const video = document.getElementById('video');
+    if (video.srcObject) {
+      video.srcObject.getTracks().forEach(t => t.stop());
+      video.srcObject = null;
+    }
+    cameraOn = false;
+    document.getElementById('scan-line').classList.remove('active');
+    const btn = document.getElementById('start-btn');
+    btn.textContent  = 'Start scanning';
+    btn.style.cssText = '';
+    document.getElementById('overlay-msg').textContent = 'Camera off — tap Start Scanning';
+  }
+
+  async function toggleCamera() {
+    dismissWelcome();
+    const btn = document.getElementById('start-btn');
+    const msg = document.getElementById('overlay-msg');
+
+    if (!cameraOn) {
+      try {
+        codeReader = new ZXing.BrowserMultiFormatReader();
+        await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+          .then(s => s.getTracks().forEach(t => t.stop()))
+          .catch(() => {});
+        const allDevices   = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = allDevices.filter(d => d.kind === 'videoinput');
+        const backCam      = videoDevices.find(d => /back|rear|environment/i.test(d.label))
+                             || videoDevices[videoDevices.length - 1];
+        const deviceId     = backCam ? backCam.deviceId : undefined;
+        await codeReader.decodeFromVideoDevice(deviceId, 'video', (result) => {
+          if (result) recordScan(result.getText(), true);
+        });
+        cameraOn = true;
+        document.getElementById('scan-line').classList.add('active');
+        btn.textContent   = 'Stop scanning';
+        btn.style.cssText = 'background:var(--danger-bg);color:var(--danger-text);border-color:var(--danger-border);font-weight:600;';
+        msg.textContent   = 'Point camera at a student ID barcode';
+      } catch(e) {
+        msg.textContent = 'Camera error: ' + e.message;
+      }
+    } else {
+      stopCamera();
+    }
+  }
+
+  /* ═══════════════════════════════
+     CORE SCAN LOGIC
+  ═══════════════════════════════ */
+  function recordScan(id, fromCamera) {
+    id = String(id).trim();
+    if (!id) return;
+    const now = Date.now();
+    if (id === lastScanned && now - lastScanTime < 2500) return;
+    lastScanned  = id;
+    lastScanTime = now;
+
+    const action = studentStatus[id] !== 'out' ? 'out' : 'in';
+    studentStatus[id] = action;
+
+    let minsGone = null;
+    if (action === 'out') {
+      checkoutTimes[id] = now;
+    } else {
+      if (checkoutTimes[id]) {
+        minsGone = minsElapsed(checkoutTimes[id]);
+        delete checkoutTimes[id];
+      }
+    }
+
+    const entry = {
+      date:     new Date().toLocaleDateString(),
+      time:     fmt(new Date()),
+      id, action,
+      minsGone: minsGone !== null ? minsGone : null
+    };
+
+    log.unshift(entry);
+    saveToStorage();
+    updateTable();
+    updateStats();
+
+    // Sync to Google Sheets (non-blocking)
+    syncAppendToSheet(entry);
+
+    if (action === 'in' && minsGone !== null) {
+      if (fromCamera) flashScreen();
+      showWelcome(id, minsGone);
+      if (fromCamera) setTimeout(() => stopCamera(), 300);
+    } else {
+      if (fromCamera) { flashScreen(); setTimeout(() => stopCamera(), 300); }
+      showToast(id + '  🚪 Checked OUT', 'out');
+    }
+  }
+
+  /* ═══════════════════════════════
+     UI UPDATES
+  ═══════════════════════════════ */
+  function updateTable() {
+    const tbody   = document.getElementById('log-body');
+    const maxMins = settings.maxMinutes;
+
+    // Build list of students currently checked out (most recent checkout entry per student)
+    const seen = new Set();
+    const filtered = log.filter(e => {
+      if (e.action === 'out' && studentStatus[e.id] === 'out' && !seen.has(e.id)) {
+        seen.add(e.id);
+        return true;
+      }
+      return false;
+    });
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" id="empty-msg">No students currently out</td></tr>';
+      return;
+    }
+    tbody.innerHTML = filtered.map(e => {
+      const minsOut = checkoutTimes[e.id] ? minsElapsed(checkoutTimes[e.id]) : null;
+      const over    = minsOut !== null && minsOut >= maxMins;
+      const minsCell = minsOut !== null
+        ? `<td class="mins-cell${over ? ' mins-over' : ''}">${minsOut} min</td>`
+        : '<td class="mins-cell">—</td>';
+      return `<tr>
+        <td style="color:var(--text-muted);font-size:12px;">${e.time}</td>
+        <td><strong>${e.id}</strong></td>
+        <td><span class="badge badge-out">Checked out</span></td>
+        ${minsCell}
+      </tr>`;
+    }).join('');
+  }
+
+  function updateStats() {
+    const vals = Object.values(studentStatus);
+    document.getElementById('stat-total').textContent = log.length;
+    document.getElementById('stat-out').textContent   = vals.filter(v => v === 'out').length;
+    document.getElementById('stat-in').textContent    = vals.filter(v => v === 'in').length;
+  }
+
+  /* ═══════════════════════════════
+     ACTIONS
+  ═══════════════════════════════ */
+  function clearLog() {
+    if (!confirm('Clear the entire log? This will also clear the Google Sheet if connected.')) return;
+    log = []; studentStatus = {}; checkoutTimes = {}; lastScanned = '';
+    saveToStorage(); updateTable(); updateStats();
+    syncClearSheet();
+    showToast('Log cleared', 'neutral');
+  }
+
+  function exportCSV() {
+    if (log.length === 0) { showToast('Nothing to export', 'neutral'); return; }
+    const rows = [
+      'Date,Time,Student ID,Action,Minutes Gone',
+      ...log.map(e => `${e.date},${e.time},${e.id},${e.action},${e.minsGone ?? ''}`)
+    ];
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'restroom_log_' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV downloaded', 'in');
+  }
+
+  function manualLog() {
+    const input = document.getElementById('manual-input');
+    recordScan(input.value, false);
+    input.value = '';
+  }
+
+  /* ── Init ── */
+  loadSettings();
+  loadFromStorage();
+  setInterval(() => { if (Object.values(studentStatus).some(v => v === 'out')) updateTable(); }, 30000);
+</script>
+</body>
+</html>
