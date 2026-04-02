@@ -820,7 +820,7 @@
   /* ── Init ── */
   loadSettings();
   loadFromStorage();
-  setInterval(() => { if (Object.values(studentStatus).some(v => v === 'out')) updateTable(); }, 30000);
+  setInterval(() => { if (Object.values(studentStatus).some(v => v === 'out')) updateTable(); }, 10000);
 </script>
 </body>
 </html>
