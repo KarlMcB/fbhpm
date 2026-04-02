@@ -33,9 +33,6 @@
       --danger-bg:     #fce8e8;
       --danger-text:   #a32d2d;
       --danger-border: #e88888;
-      --export-bg:     #e6f9ef;
-      --export-text:   #1a6b43;
-      --export-border: #4ecb8a;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -59,9 +56,6 @@
         --danger-bg:    #3a1010;
         --danger-text:  #f7a0a0;
         --danger-border:#a32d2d;
-        --export-bg:    #0d3322;
-        --export-text:  #6ee7b7;
-        --export-border:#1a6b43;
       }
     }
 
@@ -218,7 +212,6 @@
     }
     button:active { transform: scale(0.96); }
     #start-btn  { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
-    #export-btn { background: var(--export-bg); color: var(--export-text); border-color: var(--export-border); }
     #clear-btn  { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger-border); }
 
     /* ── Manual entry ── */
@@ -233,16 +226,12 @@
     .manual-row button { flex: 0 0 72px; background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent); }
 
     /* ── Stats ── */
-    .stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-bottom: 1.25rem; }
+    .stats { display: grid; grid-template-columns: minmax(0,1fr); gap: 10px; margin-bottom: 1.25rem; }
     .stat-card { background: var(--card-bg); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 12px 10px; text-align: center; }
-    .stat-total    { border-color: var(--accent); }
     .stat-out-card { border-color: var(--out-border); }
-    .stat-in-card  { border-color: var(--in-border); }
     .stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
     .stat-val { font-size: 28px; font-weight: 600; color: var(--text); }
-    .stat-total .stat-val   { color: var(--accent-dark); }
     .stat-out-card .stat-val { color: var(--out-text); }
-    .stat-in-card .stat-val  { color: var(--in-text); }
 
     /* ── Log ── */
     #log-section h2 { font-size: 15px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
@@ -352,7 +341,6 @@
 
   <div class="btn-row">
     <button id="start-btn" onclick="toggleCamera()">Start scanning</button>
-    <button id="export-btn" onclick="exportCSV()">Export CSV</button>
     <button id="clear-btn" onclick="clearLog()">Clear log</button>
   </div>
 
@@ -364,17 +352,9 @@
   </div>
 
   <div class="stats">
-    <div class="stat-card stat-total">
-      <div class="stat-label">Total scans</div>
-      <div class="stat-val" id="stat-total">0</div>
-    </div>
     <div class="stat-card stat-out-card">
       <div class="stat-label">Out now</div>
       <div class="stat-val" id="stat-out">0</div>
-    </div>
-    <div class="stat-card stat-in-card">
-      <div class="stat-label">Returned</div>
-      <div class="stat-val" id="stat-in">0</div>
     </div>
   </div>
 
@@ -748,9 +728,7 @@
 
   function updateStats() {
     const vals = Object.values(studentStatus);
-    document.getElementById('stat-total').textContent = log.length;
-    document.getElementById('stat-out').textContent   = vals.filter(v => v === 'out').length;
-    document.getElementById('stat-in').textContent    = vals.filter(v => v === 'in').length;
+    document.getElementById('stat-out').textContent = vals.filter(v => v === 'out').length;
   }
 
   /* ═══════════════════════════════
@@ -762,22 +740,6 @@
     saveToStorage(); updateTable(); updateStats();
     syncClearSheet();
     showToast('Log cleared', 'neutral');
-  }
-
-  function exportCSV() {
-    if (log.length === 0) { showToast('Nothing to export', 'neutral'); return; }
-    const rows = [
-      'Date,Time,Student ID,Action,Minutes Gone',
-      ...log.map(e => `${e.date},${e.time},${e.id},${e.action},${e.minsGone ?? ''}`)
-    ];
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = 'restroom_log_' + new Date().toISOString().slice(0, 10) + '.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('CSV downloaded', 'in');
   }
 
   function manualLog() {
