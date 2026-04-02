@@ -437,10 +437,11 @@
 <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
 <script>
   /* ── Storage keys ── */
-  const STORAGE_KEY  = 'restroom_pass_log';
-  const STATUS_KEY   = 'restroom_pass_status';
-  const CHECKOUT_KEY = 'restroom_checkout_times';
-  const SETTINGS_KEY = 'restroom_settings';
+  const STORAGE_KEY   = 'restroom_pass_log';
+  const STATUS_KEY    = 'restroom_pass_status';
+  const CHECKOUT_KEY  = 'restroom_checkout_times';
+  const SETTINGS_KEY  = 'restroom_settings';
+  const DEFAULT_URL   = 'https://script.google.com/a/macros/nsd.org/s/AKfycbwy9y_bvjK4WLYucFNaA79-P-z2q5wYOZVbwcq7x-bN1vjV4SynF45zqmyWTZGyMt3n/exec';
 
   /* ── Runtime state ── */
   let cameraOn      = false;
@@ -450,7 +451,8 @@
   let log           = [];
   let studentStatus = {};
   let checkoutTimes = {};
-  let settings      = { maxMinutes: 15, sheetUrl: '' };
+  let syncError     = false;
+  let settings      = { maxMinutes: 15, sheetUrl: DEFAULT_URL };
 
   /* ═══════════════════════════════
      SETTINGS
@@ -460,8 +462,9 @@
       const s = localStorage.getItem(SETTINGS_KEY);
       if (s) settings = Object.assign(settings, JSON.parse(s));
     } catch(e) {}
+    if (!settings.sheetUrl) settings.sheetUrl = DEFAULT_URL;
     document.getElementById('setting-max-time').value  = settings.maxMinutes;
-    document.getElementById('setting-sheet-url').value = settings.sheetUrl || '';
+    document.getElementById('setting-sheet-url').value = settings.sheetUrl;
     updateSyncIndicator();
   }
 
@@ -517,10 +520,11 @@
         method: 'POST',
         body: JSON.stringify({ action: 'append', entry })
       });
+      syncError = false;
       updateSyncIndicator('ok');
     } catch(e) {
+      syncError = true;
       updateSyncIndicator('error');
-      // Silent fail — data is safe in localStorage
     }
   }
 
@@ -533,10 +537,22 @@
         method: 'POST',
         body: JSON.stringify({ action: 'clear' })
       });
+      syncError = false;
       updateSyncIndicator('ok');
     } catch(e) {
+      syncError = true;
       updateSyncIndicator('error');
     }
+  }
+
+  /* Reconnect loop — retries every 30s when the sheet is in an error state */
+  async function reconnectLoop() {
+    if (!syncError || !settings.sheetUrl) return;
+    try {
+      const response = await fetch(settings.sheetUrl + '?action=read', { method: 'GET' });
+      const json = await response.json();
+      if (json.ok) { syncError = false; updateSyncIndicator('ok'); }
+    } catch(e) { /* still down, will retry */ }
   }
 
   /* Test connection button in settings */
@@ -821,6 +837,7 @@
   loadSettings();
   loadFromStorage();
   setInterval(() => { if (Object.values(studentStatus).some(v => v === 'out')) updateTable(); }, 10000);
+  setInterval(reconnectLoop, 30000);
 </script>
 </body>
 </html>
