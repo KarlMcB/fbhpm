@@ -158,7 +158,7 @@
     #settings-overlay.open { display: flex; }
     #settings-panel {
       background: var(--card-bg); width: min(340px, 90vw);
-      min-height: 100vh; padding: 1.5rem 1.25rem 2rem;
+      height: 100vh; padding: 1.5rem 1.25rem 2rem;
       box-shadow: -4px 0 24px rgba(0,0,0,0.15); overflow-y: auto;
     }
     #settings-panel h2 {
@@ -257,6 +257,18 @@
     .welcome-status { font-size: 14px; color: rgba(255,255,255,0.75); margin-top: 8px; }
     .welcome-tap    { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 16px; letter-spacing: 0.04em; }
 
+    /* ── Checkout overlay ── */
+    #checkout-overlay {
+      display: none; position: absolute; inset: 0;
+      border-radius: var(--radius-xl); flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 11;
+      background: rgba(21, 128, 61, 0.93);
+    }
+    #checkout-overlay.show { display: flex; }
+    .checkout-msg  { font-size: 28px; font-weight: 700; color: #fff; line-height: 1.3; }
+    .checkout-sub  { font-size: 16px; color: rgba(255,255,255,0.85); margin-top: 10px; }
+
     /* ── Spreadsheet viewer ── */
     #sheet-overlay {
       display: none; position: fixed; inset: 0;
@@ -318,6 +330,16 @@
       background: rgba(80, 10, 100, 0.94);
     }
     #invalid-id-overlay.show { display: flex; }
+
+    /* ── Leave limit denied overlay ── */
+    #limit-denied-overlay {
+      display: none; position: absolute; inset: 0;
+      border-radius: var(--radius-xl); flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 16;
+      background: rgba(146, 64, 14, 0.94);
+    }
+    #limit-denied-overlay.show { display: flex; }
     .conflict-icon  { font-size: 42px; margin-bottom: 10px; line-height: 1; }
     .conflict-msg   { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.4; }
     .conflict-sub   { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 8px; }
@@ -356,7 +378,7 @@
     }
 
     /* ── Manual entry ── */
-    .manual-row { display: flex; gap: 8px; margin-bottom: 0.75rem; }
+    .manual-row { display: flex; gap: 8px; margin-bottom: 0.75rem; margin-top: 1.5rem; }
     .manual-row input {
       flex: 1; padding: 12px 16px; border-radius: var(--radius-md);
       border: 2px solid var(--border-med); background: var(--card-bg);
@@ -371,7 +393,11 @@
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
       margin-bottom: 1.25rem;
     }
+    @media (orientation: portrait) {
+      .numpad { margin-top: 1.5rem; }
+    }
     .numpad button {
+      touch-action: manipulation;
       padding: 18px 8px; font-size: 22px; font-weight: 500;
       border-radius: var(--radius-md); border: 1.5px solid var(--border-med);
       background: var(--card-bg); color: var(--text); cursor: pointer;
@@ -401,7 +427,59 @@
     }
     #clear-log-btn:active { transform: scale(0.97); }
 
+    /* ── View spreadsheet button ── */
+    #view-sheet-btn {
+      width: 100%; padding: 10px; background: var(--accent-light);
+      color: var(--accent-dark); border: 1.5px solid var(--accent);
+      border-radius: var(--radius-md); font-size: 14px; font-weight: 500;
+      cursor: pointer; margin-top: 8px;
+    }
+    #view-sheet-btn:active { transform: scale(0.97); }
+
+    /* ── Sheet viewer overlay ── */
+    #sheet-viewer-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 300;
+      align-items: flex-start; justify-content: center;
+      padding: 1rem; overflow-y: auto;
+    }
+    #sheet-viewer-overlay.open { display: flex; }
+    #sheet-viewer-panel {
+      background: var(--card-bg); width: 100%; max-width: 700px;
+      border-radius: var(--radius-xl); overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+      margin: auto;
+    }
+    #sheet-viewer-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+      font-size: 16px; font-weight: 600; color: var(--accent-dark);
+    }
+    #close-sheet-viewer {
+      background: var(--accent-light); border: none; border-radius: var(--radius-md);
+      color: var(--accent-dark); font-size: 18px; width: 32px; height: 32px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; min-width: unset; flex: none;
+    }
+    #sheet-viewer-body {
+      overflow-x: auto; max-height: calc(100vh - 8rem); overflow-y: auto;
+    }
+    .sv-loading, .sv-empty, .sv-error {
+      text-align: center; padding: 3rem; color: var(--text-muted); font-size: 14px;
+    }
+    .sv-error { color: var(--danger-text); }
+    #sv-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px; }
+    #sv-table th {
+      text-align: left; padding: 9px 12px; color: var(--text-muted); font-weight: 600;
+      border-bottom: 1px solid var(--border); background: var(--card-bg2);
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+      position: sticky; top: 0;
+    }
+    #sv-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    #sv-table tr:last-child td { border-bottom: none; }
+
     /* ── Log ── */
+    #log-section { margin-bottom: 2rem; }
     #log-section h2 {
       font-size: 15px; font-weight: 700; margin-bottom: 10px;
       display: flex; align-items: center; gap: 8px;
@@ -434,6 +512,55 @@
     .mins-over { color: #BE123C; font-weight: 700; }
     #empty-msg { text-align: center; padding: 2.5rem; color: var(--text-muted); font-size: 13px; }
 
+    /* ── Orientation toggle ── */
+    #orientation-toggle-btn {
+      width: 100%; padding: 10px; border-radius: var(--radius-md);
+      border: 1.5px solid var(--border-med); background: var(--card-bg);
+      color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer;
+      text-align: center;
+    }
+    #orientation-toggle-btn.active-landscape,
+    #orientation-toggle-btn.active-portrait {
+      background: var(--accent-light); color: var(--accent-dark);
+      border-color: var(--accent);
+    }
+
+    /* ── Landscape two-column layout ── */
+    #landscape-left  { display: contents; }
+    #landscape-right { display: contents; }
+
+    #app.landscape-layout {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 0;
+      max-width: 100%;
+      padding: 0.6rem 0.75rem;
+    }
+    #app.landscape-layout #landscape-left {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+    #app.landscape-layout #landscape-right {
+      display: flex;
+      flex-direction: column;
+      width: 44%;
+      flex-shrink: 0;
+      justify-content: center;
+      gap: 0.5rem;
+      border-left: 1.5px solid var(--border-med);
+      padding-left: 1.25rem;
+      margin-left: 1.25rem;
+    }
+    #app.landscape-layout #landscape-left header { margin-bottom: 0.6rem; }
+    #app.landscape-layout #scanner-box { margin-bottom: 0.5rem; }
+    #app.landscape-layout .btn-row { margin-bottom: 0.5rem; }
+    #app.landscape-layout .log-wrapper { max-height: 38vh; overflow-y: auto; }
+    #app.landscape-layout .manual-row { margin-bottom: 0.5rem; }
+    #app.landscape-layout .numpad { margin-bottom: 0; }
+
     /* ── Toast ── */
     .toast {
       position: fixed; top: 1.25rem; left: 50%; transform: translateX(-50%);
@@ -447,24 +574,6 @@
 </head>
 <body>
 <div id="app">
-
-  <header>
-    <div class="header-left">
-      <div class="header-titles">
-        <h1>Restroom Pass Manager</h1>
-        <p class="subtitle">Scan a student ID to check out or check in</p>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <div id="sync-status">
-        <div class="sync-dot" id="sync-dot"></div>
-        <span id="sync-label">no sheet</span>
-      </div>
-      <button id="hamburger" onclick="openSettings()" aria-label="Settings">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
-  </header>
 
   <!-- Settings drawer -->
   <div id="settings-overlay" onclick="overlayClick(event)">
@@ -482,6 +591,34 @@
         </div>
       </div>
 
+      <div class="setting-group">
+        <div class="setting-label">Max leaves per day</div>
+        <div class="setting-desc">Students who exceed this number of checkouts today will be denied. Set to 0 for no limit.</div>
+        <div class="setting-input-row">
+          <input type="number" id="setting-max-daily" inputmode="numeric" pattern="[0-9]*" min="0" max="20" value="0" />
+          <span class="setting-unit">per day</span>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-label">Max leaves per 7 days</div>
+        <div class="setting-desc">Students who exceed this number of checkouts in the last 7 days will be denied. Set to 0 for no limit.</div>
+        <div class="setting-input-row">
+          <input type="number" id="setting-max-weekly" inputmode="numeric" pattern="[0-9]*" min="0" max="50" value="0" />
+          <span class="setting-unit">per 7 days</span>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-label">Screen orientation</div>
+        <div class="setting-desc">Force the app to stay in a specific orientation.</div>
+        <button id="orientation-toggle-btn" onclick="toggleOrientation()">⟳ Auto</button>
+      </div>
+
+      <hr class="setting-divider" />
+      <div class="setting-section-title">Spreadsheet</div>
+      <button id="view-sheet-btn" onclick="openSheetViewer()">View spreadsheet</button>
+
       <hr class="setting-divider" />
       <div class="setting-section-title">Google Sheets sync</div>
 
@@ -495,13 +632,10 @@
 
       <button id="test-connection-btn" onclick="testConnection()">Test connection</button>
       <div id="connection-result"></div>
+      <button id="view-sheet-btn" onclick="openSheetViewer()">View spreadsheet</button>
 
       <br/>
       <button id="save-settings" onclick="saveSettings()">Save settings</button>
-
-      <hr class="setting-divider" />
-      <div class="setting-section-title">Data</div>
-      <button id="view-sheet-btn" onclick="openSheetViewer()">View spreadsheet</button>
 
       <hr class="setting-divider" />
       <div class="setting-section-title">Danger zone</div>
@@ -531,6 +665,25 @@
     </div>
   </div>
 
+  <div id="landscape-left">
+  <header>
+    <div class="header-left">
+      <div class="header-titles">
+        <h1>Restroom Pass Manager</h1>
+        <p class="subtitle">Scan a student ID to check out or check in</p>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div id="sync-status">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-label">no sheet</span>
+      </div>
+      <button id="hamburger" onclick="openSettings()" aria-label="Settings">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
   <!-- Scanner -->
   <div id="scanner-box">
     <video id="video" playsinline autoplay muted></video>
@@ -539,6 +692,9 @@
     <div class="corner tl"></div><div class="corner tr"></div>
     <div class="corner bl"></div><div class="corner br"></div>
     <div id="overlay-msg">Camera off — tap Start Scanning</div>
+    <div id="checkout-overlay">
+      <div class="checkout-msg">See You Soon!<br>Please Take The Pass</div>
+    </div>
     <div id="welcome-overlay" onclick="dismissWelcome()">
       <div class="welcome-emoji" id="welcome-emoji">✅</div>
       <div class="welcome-name"  id="welcome-name">Student ID</div>
@@ -556,8 +712,12 @@
       <div class="conflict-msg">ID not recognized</div>
       <div class="conflict-sub">Please enter a valid student ID number</div>
     </div>
+    <div id="limit-denied-overlay">
+      <div class="conflict-icon">🚫</div>
+      <div class="conflict-msg">Pass denied</div>
+      <div class="conflict-sub" id="limit-denied-sub">Leave limit reached</div>
+    </div>
     <div id="pin-overlay">
-      <div class="pin-lock">🔒</div>
       <div class="pin-title">Enter Settings PIN</div>
       <div class="pin-dots">
         <div class="pin-dot" id="pin-dot-0"></div>
@@ -574,9 +734,23 @@
     <button id="start-btn" onclick="toggleCamera()">Start scanning</button>
   </div>
 
+  <div id="log-section">
+    <h2>Activity log <span class="saved-note" id="saved-note"></span></h2>
+    <div class="log-wrapper">
+      <table id="log-table">
+        <thead><tr><th>Time</th><th>Name</th><th>Action</th><th>Mins</th></tr></thead>
+        <tbody id="log-body">
+          <tr><td colspan="4" id="empty-msg">No scans yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  </div><!-- end landscape-left -->
+
+  <div id="landscape-right">
   <div class="manual-row">
     <input id="manual-input" type="text" inputmode="none" readonly
-           placeholder="Enter student ID…" />
+           placeholder="Use the keypad below to enter your Student ID…" />
   </div>
 
   <div class="numpad">
@@ -593,17 +767,17 @@
     <button onclick="numpadPress('0')">0</button>
     <button class="numpad-log" onclick="manualLog()">Log</button>
   </div>
+  </div><!-- end landscape-right -->
+</div>
 
-  <div id="log-section">
-    <h2>Activity log <span class="saved-note" id="saved-note"></span></h2>
-    <div class="log-wrapper">
-      <table id="log-table">
-        <thead><tr><th>Time</th><th>Student ID</th><th>Action</th><th>Mins</th></tr></thead>
-        <tbody id="log-body">
-          <tr><td colspan="4" id="empty-msg">No scans yet</td></tr>
-        </tbody>
-      </table>
+<!-- Sheet viewer modal -->
+<div id="sheet-viewer-overlay" onclick="sheetViewerOverlayClick(event)">
+  <div id="sheet-viewer-panel">
+    <div id="sheet-viewer-header">
+      <span>Spreadsheet History</span>
+      <button id="close-sheet-viewer" onclick="closeSheetViewer()">✕</button>
     </div>
+    <div id="sheet-viewer-body"></div>
   </div>
 </div>
 
@@ -628,7 +802,7 @@
   let studentStatus = {};
   let checkoutTimes = {};
   let syncError     = false;
-  let settings      = { maxMinutes: 15, sheetUrl: DEFAULT_URL };
+  let settings      = { maxMinutes: 15, sheetUrl: DEFAULT_URL, maxDailyLeaves: 0, maxWeeklyLeaves: 0, forcedOrientation: null };
   let pinMode       = false;
   let pinBuffer     = '';
   let roster        = null; // null = not loaded yet; Map<id,name> when loaded
@@ -642,14 +816,19 @@
       if (s) settings = Object.assign(settings, JSON.parse(s));
     } catch(e) {}
     if (!settings.sheetUrl) settings.sheetUrl = DEFAULT_URL;
-    document.getElementById('setting-max-time').value  = settings.maxMinutes;
-    document.getElementById('setting-sheet-url').value = settings.sheetUrl;
+    document.getElementById('setting-max-time').value   = settings.maxMinutes;
+    document.getElementById('setting-max-daily').value  = settings.maxDailyLeaves;
+    document.getElementById('setting-max-weekly').value = settings.maxWeeklyLeaves;
+    document.getElementById('setting-sheet-url').value  = settings.sheetUrl;
     updateSyncIndicator();
+    applyOrientation();
   }
 
   function saveSettings() {
-    settings.maxMinutes = parseInt(document.getElementById('setting-max-time').value) || 15;
-    settings.sheetUrl   = document.getElementById('setting-sheet-url').value.trim();
+    settings.maxMinutes      = parseInt(document.getElementById('setting-max-time').value)   || 15;
+    settings.maxDailyLeaves  = parseInt(document.getElementById('setting-max-daily').value)  || 0;
+    settings.maxWeeklyLeaves = parseInt(document.getElementById('setting-max-weekly').value) || 0;
+    settings.sheetUrl        = document.getElementById('setting-sheet-url').value.trim();
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
     updateSyncIndicator();
     syncReadRoster();
@@ -700,6 +879,42 @@
     }
   }
 
+  /* ── Orientation layout ── */
+  function updateLayoutOrientation() {
+    const app = document.getElementById('app');
+    if (!app) return;
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const f = settings.forcedOrientation;
+    const useLandscape = f === 'landscape' || (f !== 'portrait' && isLandscape);
+    app.classList.toggle('landscape-layout', useLandscape);
+  }
+
+  function applyOrientation() {
+    const btn = document.getElementById('orientation-toggle-btn');
+    const f   = settings.forcedOrientation;
+    updateLayoutOrientation();
+    if (btn) {
+      btn.className = f ? 'active-' + f : '';
+      btn.textContent = f === 'landscape' ? '🔄 Forcing Landscape'
+                      : f === 'portrait'  ? '📱 Forcing Portrait'
+                      : '⟳ Auto';
+    }
+  }
+
+  function toggleOrientation() {
+    const f = settings.forcedOrientation;
+    settings.forcedOrientation = f === 'portrait'  ? 'landscape'
+                               : f === 'landscape' ? null
+                               : 'portrait';
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
+    applyOrientation();
+  }
+
+  window.addEventListener('resize', updateLayoutOrientation);
+  window.addEventListener('orientationchange', function() {
+    setTimeout(updateLayoutOrientation, 150);
+  });
+
   /* ═══════════════════════════════
      GOOGLE SHEETS SYNC
   ═══════════════════════════════ */
@@ -721,7 +936,7 @@
       label.textContent = 'sync error';
     } else {
       dot.className = 'sync-dot ok';
-      label.textContent = 'sheet linked';
+      label.innerHTML = 'sheet<br>linked';
     }
   }
 
@@ -787,8 +1002,9 @@
       // Rebuild state by replaying entries in chronological order (sheet order)
       const newStatus       = {};
       const newCheckoutTimes = {};
-      json.entries.forEach(e => {
-        if (!e.id) return;
+      // Sheet is newest-first; replay oldest-first to get correct current status
+      [...json.entries].reverse().forEach(e => {
+        if (!e.id || e.action === 'denied') return;
         newStatus[e.id] = e.action;
         if (e.action === 'out' && e.checkoutTimestamp) {
           newCheckoutTimes[e.id] = e.checkoutTimestamp;
@@ -797,8 +1013,8 @@
         }
       });
 
-      // Sheet returns oldest-first; app log is newest-first
-      log           = [...json.entries].reverse();
+      // Sheet already returns newest-first
+      log           = json.entries;
       studentStatus = newStatus;
       checkoutTimes = newCheckoutTimes;
 
@@ -949,9 +1165,7 @@
   }
 
   function updateSavedNote() {
-    const hasSheet = !!settings.sheetUrl;
-    document.getElementById('saved-note').textContent =
-      log.length > 0 ? (hasSheet ? '(local + sheet)' : '(saved locally)') : '';
+    document.getElementById('saved-note').textContent = '';
   }
 
   /* ═══════════════════════════════
@@ -977,7 +1191,7 @@
     const isLate  = minsGone >= maxMins;
     const ov      = document.getElementById('welcome-overlay');
     document.getElementById('welcome-emoji').textContent  = isLate ? '⚠️' : '✅';
-    document.getElementById('welcome-name').textContent   = 'ID: ' + id;
+    document.getElementById('welcome-name').textContent   = isLate ? 'ID: ' + id : 'Welcome Back!';
     document.getElementById('welcome-time').textContent   =
       minsGone < 1 ? 'Gone less than a minute' :
       minsGone === 1 ? 'Gone 1 minute' : 'Gone ' + minsGone + ' minutes';
@@ -986,6 +1200,13 @@
     ov.className = 'show ' + (isLate ? 'late' : 'ok');
     clearTimeout(ov._timer);
     ov._timer = setTimeout(dismissWelcome, 5000);
+  }
+
+  function showCheckoutMessage() {
+    const el = document.getElementById('checkout-overlay');
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 3000);
   }
 
   function dismissWelcome() {
@@ -1057,6 +1278,32 @@
   /* ═══════════════════════════════
      CORE SCAN LOGIC
   ═══════════════════════════════ */
+  function countCheckoutsToday(id) {
+    const today = new Date().toLocaleDateString();
+    return log.filter(e => e.id === id && e.action === 'out' && e.date === today).length;
+  }
+
+  function countCheckoutsWeek(id) {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return log.filter(e => {
+      if (e.id !== id || e.action !== 'out') return false;
+      if (e.checkoutTimestamp) return e.checkoutTimestamp >= cutoff;
+      const d = new Date(e.date);
+      return !isNaN(d.getTime()) && d.getTime() >= cutoff;
+    }).length;
+  }
+
+  function showLimitDeniedMessage(type) {
+    const sub = document.getElementById('limit-denied-sub');
+    sub.textContent = type === 'daily'
+      ? 'This student has reached their daily leave limit'
+      : 'This student has reached their 7-day leave limit';
+    const el = document.getElementById('limit-denied-overlay');
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
   function showInvalidIdMessage() {
     const el = document.getElementById('invalid-id-overlay');
     el.classList.add('show');
@@ -1086,6 +1333,28 @@
     }
 
     const action = studentStatus[id] !== 'out' ? 'out' : 'in';
+
+    // Check leave limits before allowing checkout
+    if (action === 'out') {
+      const dailyLimit  = settings.maxDailyLeaves;
+      const weeklyLimit = settings.maxWeeklyLeaves;
+      let deniedReason  = null;
+      if (dailyLimit > 0 && countCheckoutsToday(id) >= dailyLimit)   deniedReason = 'daily';
+      if (!deniedReason && weeklyLimit > 0 && countCheckoutsWeek(id) >= weeklyLimit) deniedReason = 'weekly';
+      if (deniedReason) {
+        const deniedEntry = {
+          date: new Date().toLocaleDateString(), time: fmt(new Date()),
+          id, name, action: 'denied', minsGone: null, checkoutTimestamp: null,
+          incident: deniedReason === 'daily' ? 'Daily leave limit reached' : '7-day leave limit reached'
+        };
+        log.unshift(deniedEntry);
+        saveToStorage();
+        syncAppendToSheet(deniedEntry);
+        showLimitDeniedMessage(deniedReason);
+        if (fromCamera) setTimeout(() => stopCamera(), 300);
+        return;
+      }
+    }
 
     // Check for conflict before updating status
     let incident = '';
@@ -1132,6 +1401,7 @@
       if (fromCamera) setTimeout(() => stopCamera(), 300);
     } else {
       if (fromCamera) { flashScreen(); setTimeout(() => stopCamera(), 300); }
+      showCheckoutMessage();
       showToast(id + '  🚪 Checked OUT', 'out');
     }
   }
@@ -1144,8 +1414,13 @@
   }
 
   function updateTheme() {
-    const anyOut = Object.values(studentStatus).some(v => v === 'out');
-    document.body.classList.toggle('state-out', anyOut);
+    const maxMins = settings.maxMinutes;
+    const anyActiveOut = Object.entries(studentStatus).some(([id, v]) => {
+      if (v !== 'out') return false;
+      if (!checkoutTimes[id]) return true;
+      return minsElapsed(checkoutTimes[id]) < maxMins;
+    });
+    document.body.classList.toggle('state-out', anyActiveOut);
   }
 
   /* ═══════════════════════════════
@@ -1225,12 +1500,65 @@
     input.value = '';
   }
 
+  /* ═══════════════════════════════
+     SHEET VIEWER
+  ═══════════════════════════════ */
+  async function openSheetViewer() {
+    const overlay = document.getElementById('sheet-viewer-overlay');
+    const body    = document.getElementById('sheet-viewer-body');
+    overlay.classList.add('open');
+    body.innerHTML = '<div class="sv-loading">Loading…</div>';
+
+    if (!settings.sheetUrl) {
+      body.innerHTML = '<div class="sv-error">No sheet URL configured. Add one in Settings first.</div>';
+      return;
+    }
+
+    try {
+      const response = await fetch(settings.sheetUrl + '?action=read', { method: 'GET' });
+      const json     = await response.json();
+      if (!json.ok || !Array.isArray(json.entries)) {
+        body.innerHTML = '<div class="sv-error">Sheet returned an error: ' + (json.error || 'unknown') + '</div>';
+        return;
+      }
+      if (json.entries.length === 0) {
+        body.innerHTML = '<div class="sv-empty">No records in the sheet yet.</div>';
+        return;
+      }
+      const rows = json.entries.map(e => `<tr>
+        <td style="color:var(--text-muted)">${e.date || '—'}</td>
+        <td style="color:var(--text-muted)">${e.time || '—'}</td>
+        <td><strong>${e.id || '—'}</strong></td>
+        <td>${e.name || '—'}</td>
+        <td><span class="badge ${e.action === 'out' ? 'badge-out' : 'badge-in'}">${e.action === 'out' ? 'Out' : 'In'}</span></td>
+        <td class="mins-cell">${e.minsGone !== null && e.minsGone !== undefined ? e.minsGone + ' min' : '—'}</td>
+        <td style="color:var(--text-muted);font-size:11px;">${e.incident || ''}</td>
+      </tr>`).join('');
+      body.innerHTML = `<table id="sv-table">
+        <thead><tr>
+          <th>Date</th><th>Time</th><th>Student ID</th><th>Name</th><th>Action</th><th>Mins</th><th>Incident</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    } catch(e) {
+      body.innerHTML = '<div class="sv-error">Could not reach the sheet. Check your connection.</div>';
+    }
+  }
+
+  function closeSheetViewer() {
+    document.getElementById('sheet-viewer-overlay').classList.remove('open');
+  }
+
+  function sheetViewerOverlayClick(e) {
+    if (e.target === document.getElementById('sheet-viewer-overlay')) closeSheetViewer();
+  }
+
   /* ── Init ── */
   loadSettings();
   loadFromStorage();
   setInterval(() => { if (Object.values(studentStatus).some(v => v === 'out')) updateTable(); }, 10000);
   setInterval(reconnectLoop, 30000);
-  setInterval(syncReadFromSheet, 15000);
+  setInterval(syncReadFromSheet, 5000);
   syncReadFromSheet(); // initial load from sheet on startup
   syncReadRoster();    // load student roster on startup
 </script>
