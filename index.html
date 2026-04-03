@@ -903,14 +903,17 @@
 
   function toggleOrientation() {
     const f = settings.forcedOrientation;
-    settings.forcedOrientation = f === 'landscape' ? 'portrait'
-                               : f === 'portrait'  ? null
-                               : 'landscape';
+    settings.forcedOrientation = f === 'portrait'  ? 'landscape'
+                               : f === 'landscape' ? null
+                               : 'portrait';
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
     applyOrientation();
   }
 
   window.addEventListener('resize', updateLayoutOrientation);
+  window.addEventListener('orientationchange', function() {
+    setTimeout(updateLayoutOrientation, 150);
+  });
 
   /* ═══════════════════════════════
      GOOGLE SHEETS SYNC
