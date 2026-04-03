@@ -382,6 +382,7 @@
       margin-bottom: 1.25rem;
     }
     .numpad button {
+      touch-action: manipulation;
       padding: 18px 8px; font-size: 22px; font-weight: 500;
       border-radius: var(--radius-md); border: 1.5px solid var(--border-med);
       background: var(--card-bg); color: var(--text); cursor: pointer;
@@ -590,7 +591,6 @@
       <div class="conflict-sub" id="limit-denied-sub">Leave limit reached</div>
     </div>
     <div id="pin-overlay">
-      <div class="pin-lock">🔒</div>
       <div class="pin-title">Enter Settings PIN</div>
       <div class="pin-dots">
         <div class="pin-dot" id="pin-dot-0"></div>
