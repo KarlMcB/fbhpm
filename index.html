@@ -999,24 +999,24 @@
       const json     = await response.json();
       if (!json.ok || !Array.isArray(json.entries)) return;
 
-      // Rebuild state by replaying entries in chronological order (sheet order)
-      const newStatus       = {};
+      // Sheet is newest-first; first entry per student IS their current status
+      const newStatus        = {};
       const newCheckoutTimes = {};
-      // Sheet is newest-first; replay oldest-first to get correct current status
-      [...json.entries].reverse().forEach(e => {
+      const seenIds          = new Set();
+      json.entries.forEach(e => {
         if (!e.id || e.action === 'denied') return;
+        if (seenIds.has(e.id)) return;          // already captured most recent
+        seenIds.add(e.id);
         newStatus[e.id] = e.action;
         if (e.action === 'out' && e.checkoutTimestamp) {
           newCheckoutTimes[e.id] = e.checkoutTimestamp;
-        } else if (e.action === 'in') {
-          delete newCheckoutTimes[e.id];
         }
       });
 
-      // Sheet already returns newest-first
       log           = json.entries;
       studentStatus = newStatus;
       checkoutTimes = newCheckoutTimes;
+      saveToStorage();
 
       syncError = false;
       updateSyncIndicator('ok');
