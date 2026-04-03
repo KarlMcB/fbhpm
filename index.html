@@ -616,7 +616,7 @@
   const STATUS_KEY    = 'restroom_pass_status';
   const CHECKOUT_KEY  = 'restroom_checkout_times';
   const SETTINGS_KEY  = 'restroom_settings';
-  const DEFAULT_URL   = 'https://script.google.com/macros/s/AKfycby3bn4tUNZ4DOA1Kgzvufg5VzjI_uo6Dkv0pFX3wXbNjiKqdVOxacbClP0LGs5M46Tv/exec';
+  const DEFAULT_URL   = 'https://script.google.com/macros/s/AKfycbw1HxSDKBD7orQ_y20k9ntAYkDXJtIwJgQiiF28a8LXuPldHDpSe6ivTAbjzewcL_9A/exec';
   const SETTINGS_PIN  = '5700';
 
   /* ── Runtime state ── */
@@ -1175,9 +1175,10 @@
       const minsCell = minsOut !== null
         ? `<td class="mins-cell${over ? ' mins-over' : ''}">${minsOut} min</td>`
         : '<td class="mins-cell">—</td>';
+      const displayName = e.name && e.name !== 'Unrecognized' ? e.name : e.id;
       return `<tr>
         <td style="color:var(--text-muted);font-size:12px;">${e.time}</td>
-        <td><strong>${e.id}</strong></td>
+        <td><strong>${displayName}</strong></td>
         <td><span class="badge badge-out">Checked out</span></td>
         ${minsCell}
       </tr>`;
