@@ -474,36 +474,37 @@
     #landscape-left  { display: contents; }
     #landscape-right { display: contents; }
 
-    @media (orientation: landscape) {
-      #app {
-        display: flex;
-        flex-direction: row;
-        align-items: flex-start;
-        gap: 1rem;
-        max-width: 100%;
-        padding: 0.6rem 0.75rem;
-      }
-      #landscape-left {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        min-width: 0;
-      }
-      #landscape-right {
-        display: flex;
-        flex-direction: column;
-        width: 44%;
-        flex-shrink: 0;
-        justify-content: center;
-        gap: 0.5rem;
-      }
-      #landscape-left header { margin-bottom: 0.6rem; }
-      #scanner-box { margin-bottom: 0.5rem; }
-      .btn-row { margin-bottom: 0.5rem; }
-      .log-wrapper { max-height: 38vh; overflow-y: auto; }
-      .manual-row { margin-bottom: 0.5rem; }
-      .numpad { margin-bottom: 0; }
+    #app.landscape-layout {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 0;
+      max-width: 100%;
+      padding: 0.6rem 0.75rem;
     }
+    #app.landscape-layout #landscape-left {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+    #app.landscape-layout #landscape-right {
+      display: flex;
+      flex-direction: column;
+      width: 44%;
+      flex-shrink: 0;
+      justify-content: center;
+      gap: 0.5rem;
+      border-left: 1.5px solid var(--border-med);
+      padding-left: 1.25rem;
+      margin-left: 1.25rem;
+    }
+    #app.landscape-layout #landscape-left header { margin-bottom: 0.6rem; }
+    #app.landscape-layout #scanner-box { margin-bottom: 0.5rem; }
+    #app.landscape-layout .btn-row { margin-bottom: 0.5rem; }
+    #app.landscape-layout .log-wrapper { max-height: 38vh; overflow-y: auto; }
+    #app.landscape-layout .manual-row { margin-bottom: 0.5rem; }
+    #app.landscape-layout .numpad { margin-bottom: 0; }
 
     /* ── Toast ── */
     .toast {
@@ -811,15 +812,20 @@
     }
   }
 
-  /* ── Orientation lock ── */
+  /* ── Orientation layout ── */
+  function updateLayoutOrientation() {
+    const app = document.getElementById('app');
+    if (!app) return;
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const f = settings.forcedOrientation;
+    const useLandscape = f === 'landscape' || (f !== 'portrait' && isLandscape);
+    app.classList.toggle('landscape-layout', useLandscape);
+  }
+
   function applyOrientation() {
     const btn = document.getElementById('orientation-toggle-btn');
     const f   = settings.forcedOrientation;
-    if (f && screen.orientation && screen.orientation.lock) {
-      screen.orientation.lock(f).catch(() => {});
-    } else if (!f && screen.orientation && screen.orientation.unlock) {
-      screen.orientation.unlock();
-    }
+    updateLayoutOrientation();
     if (btn) {
       btn.className = f ? 'active-' + f : '';
       btn.textContent = f === 'landscape' ? '🔄 Forcing Landscape'
@@ -836,6 +842,8 @@
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
     applyOrientation();
   }
+
+  window.addEventListener('resize', updateLayoutOrientation);
 
   /* ═══════════════════════════════
      GOOGLE SHEETS SYNC
