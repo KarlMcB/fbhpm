@@ -318,6 +318,16 @@
       background: rgba(80, 10, 100, 0.94);
     }
     #invalid-id-overlay.show { display: flex; }
+
+    /* ── Leave limit denied overlay ── */
+    #limit-denied-overlay {
+      display: none; position: absolute; inset: 0;
+      border-radius: var(--radius-xl); flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 16;
+      background: rgba(146, 64, 14, 0.94);
+    }
+    #limit-denied-overlay.show { display: flex; }
     .conflict-icon  { font-size: 42px; margin-bottom: 10px; line-height: 1; }
     .conflict-msg   { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.4; }
     .conflict-sub   { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 8px; }
@@ -482,6 +492,24 @@
         </div>
       </div>
 
+      <div class="setting-group">
+        <div class="setting-label">Max leaves per day</div>
+        <div class="setting-desc">Students who exceed this number of checkouts today will be denied. Set to 0 for no limit.</div>
+        <div class="setting-input-row">
+          <input type="number" id="setting-max-daily" inputmode="numeric" pattern="[0-9]*" min="0" max="20" value="0" />
+          <span class="setting-unit">per day</span>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-label">Max leaves per 7 days</div>
+        <div class="setting-desc">Students who exceed this number of checkouts in the last 7 days will be denied. Set to 0 for no limit.</div>
+        <div class="setting-input-row">
+          <input type="number" id="setting-max-weekly" inputmode="numeric" pattern="[0-9]*" min="0" max="50" value="0" />
+          <span class="setting-unit">per 7 days</span>
+        </div>
+      </div>
+
       <hr class="setting-divider" />
       <div class="setting-section-title">Google Sheets sync</div>
 
@@ -556,6 +584,11 @@
       <div class="conflict-msg">ID not recognized</div>
       <div class="conflict-sub">Please enter a valid student ID number</div>
     </div>
+    <div id="limit-denied-overlay">
+      <div class="conflict-icon">🚫</div>
+      <div class="conflict-msg">Pass denied</div>
+      <div class="conflict-sub" id="limit-denied-sub">Leave limit reached</div>
+    </div>
     <div id="pin-overlay">
       <div class="pin-lock">🔒</div>
       <div class="pin-title">Enter Settings PIN</div>
@@ -628,7 +661,7 @@
   let studentStatus = {};
   let checkoutTimes = {};
   let syncError     = false;
-  let settings      = { maxMinutes: 15, sheetUrl: DEFAULT_URL };
+  let settings      = { maxMinutes: 15, sheetUrl: DEFAULT_URL, maxDailyLeaves: 0, maxWeeklyLeaves: 0 };
   let pinMode       = false;
   let pinBuffer     = '';
   let roster        = null; // null = not loaded yet; Map<id,name> when loaded
@@ -642,14 +675,18 @@
       if (s) settings = Object.assign(settings, JSON.parse(s));
     } catch(e) {}
     if (!settings.sheetUrl) settings.sheetUrl = DEFAULT_URL;
-    document.getElementById('setting-max-time').value  = settings.maxMinutes;
-    document.getElementById('setting-sheet-url').value = settings.sheetUrl;
+    document.getElementById('setting-max-time').value   = settings.maxMinutes;
+    document.getElementById('setting-max-daily').value  = settings.maxDailyLeaves;
+    document.getElementById('setting-max-weekly').value = settings.maxWeeklyLeaves;
+    document.getElementById('setting-sheet-url').value  = settings.sheetUrl;
     updateSyncIndicator();
   }
 
   function saveSettings() {
-    settings.maxMinutes = parseInt(document.getElementById('setting-max-time').value) || 15;
-    settings.sheetUrl   = document.getElementById('setting-sheet-url').value.trim();
+    settings.maxMinutes    = parseInt(document.getElementById('setting-max-time').value)   || 15;
+    settings.maxDailyLeaves  = parseInt(document.getElementById('setting-max-daily').value)  || 0;
+    settings.maxWeeklyLeaves = parseInt(document.getElementById('setting-max-weekly').value) || 0;
+    settings.sheetUrl        = document.getElementById('setting-sheet-url').value.trim();
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
     updateSyncIndicator();
     syncReadRoster();
@@ -788,7 +825,7 @@
       const newStatus       = {};
       const newCheckoutTimes = {};
       json.entries.forEach(e => {
-        if (!e.id) return;
+        if (!e.id || e.action === 'denied') return;
         newStatus[e.id] = e.action;
         if (e.action === 'out' && e.checkoutTimestamp) {
           newCheckoutTimes[e.id] = e.checkoutTimestamp;
@@ -1057,6 +1094,32 @@
   /* ═══════════════════════════════
      CORE SCAN LOGIC
   ═══════════════════════════════ */
+  function countCheckoutsToday(id) {
+    const today = new Date().toLocaleDateString();
+    return log.filter(e => e.id === id && e.action === 'out' && e.date === today).length;
+  }
+
+  function countCheckoutsWeek(id) {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return log.filter(e => {
+      if (e.id !== id || e.action !== 'out') return false;
+      if (e.checkoutTimestamp) return e.checkoutTimestamp >= cutoff;
+      const d = new Date(e.date);
+      return !isNaN(d.getTime()) && d.getTime() >= cutoff;
+    }).length;
+  }
+
+  function showLimitDeniedMessage(type) {
+    const sub = document.getElementById('limit-denied-sub');
+    sub.textContent = type === 'daily'
+      ? 'This student has reached their daily leave limit'
+      : 'This student has reached their 7-day leave limit';
+    const el = document.getElementById('limit-denied-overlay');
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
   function showInvalidIdMessage() {
     const el = document.getElementById('invalid-id-overlay');
     el.classList.add('show');
@@ -1086,6 +1149,28 @@
     }
 
     const action = studentStatus[id] !== 'out' ? 'out' : 'in';
+
+    // Check leave limits before allowing checkout
+    if (action === 'out') {
+      const dailyLimit  = settings.maxDailyLeaves;
+      const weeklyLimit = settings.maxWeeklyLeaves;
+      let deniedReason  = null;
+      if (dailyLimit > 0 && countCheckoutsToday(id) >= dailyLimit)   deniedReason = 'daily';
+      if (!deniedReason && weeklyLimit > 0 && countCheckoutsWeek(id) >= weeklyLimit) deniedReason = 'weekly';
+      if (deniedReason) {
+        const deniedEntry = {
+          date: new Date().toLocaleDateString(), time: fmt(new Date()),
+          id, name, action: 'denied', minsGone: null, checkoutTimestamp: null,
+          incident: deniedReason === 'daily' ? 'Daily leave limit reached' : '7-day leave limit reached'
+        };
+        log.unshift(deniedEntry);
+        saveToStorage();
+        syncAppendToSheet(deniedEntry);
+        showLimitDeniedMessage(deniedReason);
+        if (fromCamera) setTimeout(() => stopCamera(), 300);
+        return;
+      }
+    }
 
     // Check for conflict before updating status
     let incident = '';
@@ -1144,8 +1229,13 @@
   }
 
   function updateTheme() {
-    const anyOut = Object.values(studentStatus).some(v => v === 'out');
-    document.body.classList.toggle('state-out', anyOut);
+    const maxMins = settings.maxMinutes;
+    const anyActiveOut = Object.entries(studentStatus).some(([id, v]) => {
+      if (v !== 'out') return false;
+      if (!checkoutTimes[id]) return true;
+      return minsElapsed(checkoutTimes[id]) < maxMins;
+    });
+    document.body.classList.toggle('state-out', anyActiveOut);
   }
 
   /* ═══════════════════════════════
