@@ -308,6 +308,16 @@
       background: rgba(153, 27, 27, 0.94);
     }
     #conflict-overlay.show { display: flex; }
+
+    /* ── Invalid ID overlay ── */
+    #invalid-id-overlay {
+      display: none; position: absolute; inset: 0;
+      border-radius: var(--radius-xl); flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 17;
+      background: rgba(80, 10, 100, 0.94);
+    }
+    #invalid-id-overlay.show { display: flex; }
     .conflict-icon  { font-size: 42px; margin-bottom: 10px; line-height: 1; }
     .conflict-msg   { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.4; }
     .conflict-sub   { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 8px; }
@@ -510,11 +520,11 @@
         <table id="sheet-table">
           <thead>
             <tr>
-              <th>Date</th><th>Time</th><th>Student ID</th><th>Action</th><th>Mins</th><th>Incident</th>
+              <th>Date</th><th>Time</th><th>Student ID</th><th>Name</th><th>Action</th><th>Mins</th><th>Incident</th>
             </tr>
           </thead>
           <tbody id="sheet-body">
-            <tr><td colspan="6" id="sheet-empty">Loading…</td></tr>
+            <tr><td colspan="7" id="sheet-empty">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -540,6 +550,11 @@
       <div class="conflict-icon">⚠️</div>
       <div class="conflict-msg">Please ask your teacher<br>for permission to leave</div>
       <div class="conflict-sub">Someone is already checked out</div>
+    </div>
+    <div id="invalid-id-overlay">
+      <div class="conflict-icon">🚫</div>
+      <div class="conflict-msg">ID not recognized</div>
+      <div class="conflict-sub">Please enter a valid student ID number</div>
     </div>
     <div id="pin-overlay">
       <div class="pin-lock">🔒</div>
@@ -616,6 +631,7 @@
   let settings      = { maxMinutes: 15, sheetUrl: DEFAULT_URL };
   let pinMode       = false;
   let pinBuffer     = '';
+  let roster        = null; // null = not loaded yet; Map<id,name> when loaded
 
   /* ═══════════════════════════════
      SETTINGS
@@ -636,6 +652,7 @@
     settings.sheetUrl   = document.getElementById('setting-sheet-url').value.trim();
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
     updateSyncIndicator();
+    syncReadRoster();
     closeSettings();
     showToast('Settings saved', 'neutral');
   }
@@ -743,6 +760,19 @@
     }
   }
 
+  /* Fetch the Roster tab and build a Map of id → name */
+  async function syncReadRoster() {
+    if (!settings.sheetUrl) return;
+    try {
+      const response = await fetch(settings.sheetUrl + '?action=readRoster', { method: 'GET' });
+      const json     = await response.json();
+      if (!json.ok || !Array.isArray(json.roster)) return;
+      roster = new Map(json.roster.map(r => [String(r.id).trim(), r.name]));
+    } catch(e) {
+      // Silent fail — roster stays null, entries will be logged as 'Unrecognized'
+    }
+  }
+
   /* Poll the sheet every 15s — rebuilds state from sheet so all devices stay in sync */
   let lastWriteTime = 0;
   async function syncReadFromSheet() {
@@ -800,7 +830,7 @@
     const status = document.getElementById('sheet-status');
     const tbody  = document.getElementById('sheet-body');
     status.textContent = 'Loading…';
-    tbody.innerHTML = '<tr><td colspan="6" id="sheet-empty">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" id="sheet-empty">Loading…</td></tr>';
 
     if (!settings.sheetUrl) {
       status.textContent = 'No sheet URL configured.';
@@ -819,7 +849,7 @@
       status.textContent = entries.length + ' row' + (entries.length !== 1 ? 's' : '') + ' · Last refreshed ' + fmt(new Date());
 
       if (entries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" id="sheet-empty">No data in spreadsheet yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" id="sheet-empty">No data in spreadsheet yet.</td></tr>';
         return;
       }
 
@@ -831,10 +861,12 @@
           ? `<td class="incident-cell">${e.incident}</td>`
           : '<td style="color:var(--text-muted)">—</td>';
         const mins = e.minsGone !== null && e.minsGone !== undefined ? e.minsGone + ' min' : '—';
+        const nameDisplay = e.name || '<span style="color:var(--text-muted)">—</span>';
         return `<tr>
           <td style="color:var(--text-muted);white-space:nowrap;">${e.date}</td>
           <td style="color:var(--text-muted);white-space:nowrap;">${e.time}</td>
           <td><strong>${e.id}</strong></td>
+          <td>${nameDisplay}</td>
           <td>${actionBadge}</td>
           <td class="mins-cell">${mins}</td>
           ${incidentCell}
@@ -842,7 +874,7 @@
       }).join('');
     } catch(err) {
       status.textContent = 'Could not reach the sheet.';
-      tbody.innerHTML = '<tr><td colspan="6" id="sheet-empty">Connection failed.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" id="sheet-empty">Connection failed.</td></tr>';
     }
   }
 
@@ -1025,6 +1057,13 @@
   /* ═══════════════════════════════
      CORE SCAN LOGIC
   ═══════════════════════════════ */
+  function showInvalidIdMessage() {
+    const el = document.getElementById('invalid-id-overlay');
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 3000);
+  }
+
   function recordScan(id, fromCamera) {
     id = String(id).trim();
     if (!id) return;
@@ -1032,6 +1071,19 @@
     if (id === lastScanned && now - lastScanTime < 2500) return;
     lastScanned  = id;
     lastScanTime = now;
+
+    // Validate against roster if it has been loaded
+    let name;
+    if (roster !== null) {
+      name = roster.get(id);
+      if (name === undefined) {
+        showInvalidIdMessage();
+        if (fromCamera) setTimeout(() => stopCamera(), 300);
+        return;
+      }
+    } else {
+      name = 'Unrecognized';
+    }
 
     const action = studentStatus[id] !== 'out' ? 'out' : 'in';
 
@@ -1060,7 +1112,7 @@
     const entry = {
       date:              new Date().toLocaleDateString(),
       time:              fmt(new Date()),
-      id, action,
+      id, name, action,
       minsGone:          minsGone !== null ? minsGone : null,
       checkoutTimestamp: action === 'out' ? now : null,
       incident
@@ -1179,6 +1231,7 @@
   setInterval(reconnectLoop, 30000);
   setInterval(syncReadFromSheet, 15000);
   syncReadFromSheet(); // initial load from sheet on startup
+  syncReadRoster();    // load student roster on startup
 </script>
 </body>
 </html>
