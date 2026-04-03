@@ -457,6 +457,19 @@
     .mins-over { color: #BE123C; font-weight: 700; }
     #empty-msg { text-align: center; padding: 2.5rem; color: var(--text-muted); font-size: 13px; }
 
+    /* ── Orientation toggle ── */
+    #orientation-toggle-btn {
+      width: 100%; padding: 10px; border-radius: var(--radius-md);
+      border: 1.5px solid var(--border-med); background: var(--card-bg);
+      color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer;
+      text-align: center;
+    }
+    #orientation-toggle-btn.active-landscape,
+    #orientation-toggle-btn.active-portrait {
+      background: var(--accent-light); color: var(--accent-dark);
+      border-color: var(--accent);
+    }
+
     /* ── Landscape two-column layout ── */
     #landscape-left  { display: contents; }
     #landscape-right { display: contents; }
@@ -540,6 +553,16 @@
         </div>
       </div>
 
+      <div class="setting-group">
+        <div class="setting-label">Screen orientation</div>
+        <div class="setting-desc">Force the app to stay in a specific orientation.</div>
+        <button id="orientation-toggle-btn" onclick="toggleOrientation()">⟳ Auto</button>
+      </div>
+
+      <hr class="setting-divider" />
+      <div class="setting-section-title">Spreadsheet</div>
+      <button id="view-sheet-btn" onclick="openSheetViewer()">View spreadsheet</button>
+
       <hr class="setting-divider" />
       <div class="setting-section-title">Google Sheets sync</div>
 
@@ -556,10 +579,6 @@
 
       <br/>
       <button id="save-settings" onclick="saveSettings()">Save settings</button>
-
-      <hr class="setting-divider" />
-      <div class="setting-section-title">Data</div>
-      <button id="view-sheet-btn" onclick="openSheetViewer()">View spreadsheet</button>
 
       <hr class="setting-divider" />
       <div class="setting-section-title">Danger zone</div>
@@ -715,7 +734,7 @@
   let studentStatus = {};
   let checkoutTimes = {};
   let syncError     = false;
-  let settings      = { maxMinutes: 15, sheetUrl: DEFAULT_URL, maxDailyLeaves: 0, maxWeeklyLeaves: 0 };
+  let settings      = { maxMinutes: 15, sheetUrl: DEFAULT_URL, maxDailyLeaves: 0, maxWeeklyLeaves: 0, forcedOrientation: null };
   let pinMode       = false;
   let pinBuffer     = '';
   let roster        = null; // null = not loaded yet; Map<id,name> when loaded
@@ -734,10 +753,11 @@
     document.getElementById('setting-max-weekly').value = settings.maxWeeklyLeaves;
     document.getElementById('setting-sheet-url').value  = settings.sheetUrl;
     updateSyncIndicator();
+    applyOrientation();
   }
 
   function saveSettings() {
-    settings.maxMinutes    = parseInt(document.getElementById('setting-max-time').value)   || 15;
+    settings.maxMinutes      = parseInt(document.getElementById('setting-max-time').value)   || 15;
     settings.maxDailyLeaves  = parseInt(document.getElementById('setting-max-daily').value)  || 0;
     settings.maxWeeklyLeaves = parseInt(document.getElementById('setting-max-weekly').value) || 0;
     settings.sheetUrl        = document.getElementById('setting-sheet-url').value.trim();
@@ -789,6 +809,32 @@
       updatePinDots();
       setTimeout(() => hidePinPrompt(), 3000);
     }
+  }
+
+  /* ── Orientation lock ── */
+  function applyOrientation() {
+    const btn = document.getElementById('orientation-toggle-btn');
+    const f   = settings.forcedOrientation;
+    if (f && screen.orientation && screen.orientation.lock) {
+      screen.orientation.lock(f).catch(() => {});
+    } else if (!f && screen.orientation && screen.orientation.unlock) {
+      screen.orientation.unlock();
+    }
+    if (btn) {
+      btn.className = f ? 'active-' + f : '';
+      btn.textContent = f === 'landscape' ? '🔄 Forcing Landscape'
+                      : f === 'portrait'  ? '📱 Forcing Portrait'
+                      : '⟳ Auto';
+    }
+  }
+
+  function toggleOrientation() {
+    const f = settings.forcedOrientation;
+    settings.forcedOrientation = f === 'landscape' ? 'portrait'
+                               : f === 'portrait'  ? null
+                               : 'landscape';
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
+    applyOrientation();
   }
 
   /* ═══════════════════════════════
