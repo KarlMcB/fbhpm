@@ -157,17 +157,54 @@
     }
     #settings-overlay.open { display: flex; }
     #settings-panel {
-      background: var(--card-bg); width: min(340px, 90vw);
+      --sp-bg:          #f5f3ff;
+      --sp-accent:      #7c3aed;
+      --sp-accent-light:#ede9fe;
+      --sp-accent-dark: #5b21b6;
+      --sp-text:        #3b0764;
+      --sp-border:      rgba(124,58,237,0.15);
+      background: var(--sp-bg); width: min(340px, 90vw);
       height: 100vh; padding: 1.5rem 1.25rem 2rem;
-      box-shadow: -4px 0 24px rgba(0,0,0,0.15); overflow-y: auto;
+      box-shadow: -4px 0 24px rgba(109,40,217,0.18); overflow-y: auto;
+      color: var(--sp-text);
     }
     #settings-panel h2 {
-      font-size: 17px; font-weight: 600; color: var(--accent-dark);
+      font-size: 17px; font-weight: 600; color: var(--sp-accent-dark);
       margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;
     }
+    #settings-panel .setting-section-title { color: var(--sp-accent-dark); }
+    #settings-panel .setting-label { color: var(--sp-text); }
+    #settings-panel .setting-desc { color: #6d28d9; }
+    #settings-panel hr.setting-divider { border-top-color: var(--sp-border); }
+    #settings-panel input[type="number"],
+    #settings-panel input[type="url"],
+    #settings-panel input[type="text"],
+    #settings-panel select {
+      border-color: var(--sp-border);
+      background: #fff;
+      color: var(--sp-text);
+    }
+    #settings-panel input:focus, #settings-panel select:focus {
+      border-color: var(--sp-accent);
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
+    }
+    #save-settings {
+      background: linear-gradient(135deg, #7c3aed, #a78bfa) !important;
+      box-shadow: 0 2px 10px rgba(124,58,237,0.35) !important;
+    }
+    #test-connection-btn, #view-sheet-btn {
+      background: var(--sp-accent-light) !important;
+      color: var(--sp-accent-dark) !important;
+      border-color: var(--sp-border) !important;
+    }
+    #orientation-toggle-btn {
+      background: var(--sp-accent-light) !important;
+      color: var(--sp-accent-dark) !important;
+      border-color: var(--sp-border) !important;
+    }
     #close-settings {
-      background: var(--accent-light); border: none; border-radius: var(--radius-md);
-      color: var(--accent-dark); font-size: 18px; width: 32px; height: 32px;
+      background: var(--sp-accent-light); border: none; border-radius: var(--radius-md);
+      color: var(--sp-accent-dark); font-size: 18px; width: 32px; height: 32px;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       padding: 0; min-width: unset; flex: none;
     }
@@ -731,7 +768,7 @@
   </div>
 
   <div class="btn-row">
-    <button id="start-btn" onclick="toggleCamera()">Start scanning</button>
+    <button id="start-btn" onclick="toggleCamera()">Tap to Scan ID</button>
   </div>
 
   <div id="log-section">
@@ -765,7 +802,7 @@
     <button onclick="numpadPress('9')">9</button>
     <button class="numpad-del" onclick="numpadDelete()">⌫</button>
     <button onclick="numpadPress('0')">0</button>
-    <button class="numpad-log" onclick="manualLog()">Log</button>
+    <button class="numpad-log" onclick="manualLog()">Check In / Out</button>
   </div>
   </div><!-- end landscape-right -->
 </div>
