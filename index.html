@@ -7,10 +7,15 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Pass Manager" />
   <title>Restroom Pass Manager</title>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
+
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Green theme (default — no one out) ── */
     :root {
       --page-bg:       #f0fdf4;
       --card-bg:       #ffffff;
@@ -41,7 +46,6 @@
       --shadow-btn:    0 2px 10px rgba(22,163,74,0.30);
     }
 
-    /* ── Red theme (someone is checked out) ── */
     body.state-out {
       --page-bg:       #fff1f2;
       --card-bg:       #ffffff;
@@ -112,9 +116,113 @@
       transition: background-color 0.5s ease, color 0.5s ease;
     }
 
+    /* ── Auth View ── */
+    #auth-view {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: var(--page-bg);
+    }
+    .auth-container { width: 100%; max-width: 420px; }
+    .auth-logo { text-align: center; margin-bottom: 2rem; }
+    .auth-logo-icon { font-size: 48px; margin-bottom: 0.5rem; }
+    .auth-title {
+      font-size: 24px; font-weight: 700;
+      background: var(--grad-main); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .auth-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+    .auth-card {
+      background: var(--card-bg); border: 1.5px solid var(--border);
+      border-radius: var(--radius-xl); padding: 1.75rem 1.5rem;
+      box-shadow: var(--shadow-card);
+    }
+    .auth-card-title { font-size: 18px; font-weight: 700; color: var(--accent-dark); margin-bottom: 1.25rem; }
+    .auth-field { margin-bottom: 1rem; }
+    .auth-label { display: block; font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+    .auth-input {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--border-med); border-radius: var(--radius-md);
+      background: var(--card-bg); color: var(--text); font-size: 15px;
+      outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+    }
+    .auth-input:focus { border-color: var(--accent); }
+    .auth-error {
+      font-size: 13px; color: var(--danger-text); background: var(--danger-bg);
+      border-radius: var(--radius-md); padding: 8px 12px; margin-bottom: 0.75rem; display: none;
+    }
+    .auth-error:not(:empty) { display: block; }
+    .auth-btn-primary {
+      width: 100%; padding: 13px; background: var(--grad-main); color: #fff;
+      border: none; border-radius: var(--radius-md); font-size: 15px; font-weight: 700;
+      cursor: pointer; box-shadow: var(--shadow-btn); min-width: unset; flex: none;
+    }
+    .auth-btn-primary:active { transform: scale(0.97); }
+    .auth-switch { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 1rem; }
+    .auth-switch span { color: var(--accent-dark); font-weight: 600; cursor: pointer; text-decoration: underline; }
+
+    /* ── Classroom View ── */
+    #classroom-view { min-height: 100vh; background: var(--page-bg); padding-bottom: 3rem; }
+    .cv-container { max-width: 600px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .cv-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem; }
+    .cv-title {
+      font-size: 22px; font-weight: 700;
+      background: var(--grad-main); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .cv-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+    .cv-signout-btn {
+      flex: none; min-width: unset; padding: 8px 14px; font-size: 13px;
+      background: var(--card-bg); border: 1.5px solid var(--border-med);
+      border-radius: var(--radius-md); color: var(--text-muted); cursor: pointer;
+    }
+    .cv-new-btn {
+      width: 100%; padding: 13px; background: var(--grad-main); color: #fff; border: none;
+      border-radius: var(--radius-md); font-size: 15px; font-weight: 700; cursor: pointer;
+      box-shadow: var(--shadow-btn); margin-bottom: 1rem; min-width: unset;
+    }
+    .cv-new-btn:active { transform: scale(0.97); }
+    .create-classroom-card {
+      background: var(--card-bg); border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem;
+      box-shadow: var(--shadow-card);
+    }
+    .create-btn-row { display: flex; gap: 8px; margin-top: 0.75rem; }
+    .cv-create-btn {
+      flex: 1; padding: 11px; background: var(--grad-main); color: #fff;
+      border: none; border-radius: var(--radius-md); font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .cv-cancel-btn {
+      flex: none; padding: 11px 16px; background: var(--card-bg);
+      border: 1.5px solid var(--border-med); border-radius: var(--radius-md);
+      color: var(--text-muted); font-size: 14px; cursor: pointer; min-width: unset;
+    }
+    .cv-loading, .cv-empty { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 14px; }
+    .classroom-card {
+      background: var(--card-bg); border: 1.5px solid var(--border); border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem; margin-bottom: 0.75rem; display: flex;
+      align-items: center; justify-content: space-between; gap: 1rem; box-shadow: var(--shadow-card);
+    }
+    .cc-info { flex: 1; min-width: 0; }
+    .cc-name { font-size: 16px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cc-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .cc-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .cc-open-btn {
+      padding: 8px 16px; background: var(--grad-main); color: #fff; border: none;
+      border-radius: var(--radius-md); font-size: 13px; font-weight: 700; cursor: pointer;
+      flex: none; min-width: unset; box-shadow: var(--shadow-btn);
+    }
+    .cc-delete-btn {
+      padding: 8px 10px; background: var(--danger-bg); color: var(--danger-text);
+      border: 1.5px solid var(--danger-border); border-radius: var(--radius-md);
+      font-size: 13px; cursor: pointer; flex: none; min-width: unset;
+    }
+
+    /* ── Scanner View (main app) ── */
     #app { max-width: 600px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
 
-    /* ── Header ── */
     header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
     .header-left { display: flex; align-items: center; gap: 10px; }
     .header-titles h1 {
@@ -122,18 +230,19 @@
       background: var(--grad-main); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
       background-clip: text;
     }
-    .header-titles .subtitle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .classroom-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 10px 4px 8px; background: var(--accent-light);
+      border: 1.5px solid var(--accent); border-radius: 999px;
+      font-size: 12px; font-weight: 600; color: var(--accent-dark); cursor: pointer;
+      white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+      margin-top: 4px; flex: none; min-width: unset;
+    }
+    .classroom-chip:active { transform: scale(0.95); }
+    .chip-arrow { font-size: 11px; opacity: 0.7; flex-shrink: 0; }
 
-    /* Sync status dot */
-    #sync-status {
-      display: flex; align-items: center; gap: 5px;
-      font-size: 11px; color: var(--text-muted);
-    }
-    .sync-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--text-muted);
-      flex-shrink: 0;
-    }
+    #sync-status { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text-muted); }
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; }
     .sync-dot.ok      { background: #4ecb8a; }
     .sync-dot.syncing { background: #f5c842; animation: pulse 1s infinite; }
     .sync-dot.error   { background: #e24b4a; }
@@ -143,8 +252,7 @@
       background: var(--card-bg); border: 1.5px solid var(--border-med);
       border-radius: var(--radius-md); padding: 8px; cursor: pointer;
       display: flex; flex-direction: column; gap: 4px; align-items: center;
-      -webkit-tap-highlight-color: transparent;
-      box-shadow: var(--shadow-card);
+      -webkit-tap-highlight-color: transparent; box-shadow: var(--shadow-card);
       width: fit-content; flex: none;
     }
     #hamburger span { display: block; width: 20px; height: 2px; background: var(--accent); border-radius: 2px; }
@@ -157,54 +265,17 @@
     }
     #settings-overlay.open { display: flex; }
     #settings-panel {
-      --sp-bg:          #f5f3ff;
-      --sp-accent:      #7c3aed;
-      --sp-accent-light:#ede9fe;
-      --sp-accent-dark: #5b21b6;
-      --sp-text:        #3b0764;
-      --sp-border:      rgba(124,58,237,0.15);
-      background: var(--sp-bg); width: min(340px, 90vw);
+      background: var(--card-bg); width: min(340px, 90vw);
       height: 100vh; padding: 1.5rem 1.25rem 2rem;
-      box-shadow: -4px 0 24px rgba(109,40,217,0.18); overflow-y: auto;
-      color: var(--sp-text);
+      box-shadow: -4px 0 24px rgba(0,0,0,0.15); overflow-y: auto;
     }
     #settings-panel h2 {
-      font-size: 17px; font-weight: 600; color: var(--sp-accent-dark);
+      font-size: 17px; font-weight: 600; color: var(--accent-dark);
       margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;
     }
-    #settings-panel .setting-section-title { color: var(--sp-accent-dark); }
-    #settings-panel .setting-label { color: var(--sp-text); }
-    #settings-panel .setting-desc { color: #6d28d9; }
-    #settings-panel hr.setting-divider { border-top-color: var(--sp-border); }
-    #settings-panel input[type="number"],
-    #settings-panel input[type="url"],
-    #settings-panel input[type="text"],
-    #settings-panel select {
-      border-color: var(--sp-border);
-      background: #fff;
-      color: var(--sp-text);
-    }
-    #settings-panel input:focus, #settings-panel select:focus {
-      border-color: var(--sp-accent);
-      box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
-    }
-    #save-settings {
-      background: linear-gradient(135deg, #7c3aed, #a78bfa) !important;
-      box-shadow: 0 2px 10px rgba(124,58,237,0.35) !important;
-    }
-    #test-connection-btn, #view-sheet-btn {
-      background: var(--sp-accent-light) !important;
-      color: var(--sp-accent-dark) !important;
-      border-color: var(--sp-border) !important;
-    }
-    #orientation-toggle-btn {
-      background: var(--sp-accent-light) !important;
-      color: var(--sp-accent-dark) !important;
-      border-color: var(--sp-border) !important;
-    }
     #close-settings {
-      background: var(--sp-accent-light); border: none; border-radius: var(--radius-md);
-      color: var(--sp-accent-dark); font-size: 18px; width: 32px; height: 32px;
+      background: var(--accent-light); border: none; border-radius: var(--radius-md);
+      color: var(--accent-dark); font-size: 18px; width: 32px; height: 32px;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       padding: 0; min-width: unset; flex: none;
     }
@@ -213,8 +284,7 @@
     .setting-desc { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; line-height: 1.5; }
     .setting-input-row { display: flex; align-items: center; gap: 8px; }
     .setting-input-row input[type="number"],
-    .setting-input-row input[type="text"],
-    .setting-input-row input[type="url"] {
+    .setting-input-row input[type="text"] {
       flex: 1; padding: 8px 10px; border-radius: var(--radius-md);
       border: 1.5px solid var(--border-med); background: var(--card-bg);
       color: var(--text); font-size: 14px;
@@ -231,26 +301,119 @@
       box-shadow: var(--shadow-btn);
     }
     #save-settings:active { transform: scale(0.97); }
-    #test-connection-btn {
+    .settings-action-btn {
       width: 100%; padding: 10px; background: var(--accent-light);
       color: var(--accent-dark); border: 1.5px solid var(--accent);
       border-radius: var(--radius-md); font-size: 14px; font-weight: 500;
       cursor: pointer; margin-top: 8px;
     }
-    #test-connection-btn:active { transform: scale(0.97); }
-    #connection-result {
-      font-size: 12px; margin-top: 8px; padding: 8px 10px;
-      border-radius: var(--radius-md); display: none; line-height: 1.5;
+    .settings-action-btn:active { transform: scale(0.97); }
+    #switch-classroom-btn {
+      width: 100%; padding: 10px; background: var(--card-bg); color: var(--text);
+      border: 1.5px solid var(--border-med); border-radius: var(--radius-md);
+      font-size: 14px; font-weight: 500; cursor: pointer;
     }
-    #connection-result.ok    { background: var(--in-bg); color: var(--in-text); }
-    #connection-result.error { background: var(--danger-bg); color: var(--danger-text); }
+    #switch-classroom-btn:active { transform: scale(0.97); }
+    #clear-log-btn {
+      width: 100%; padding: 10px; background: var(--danger-bg);
+      color: var(--danger-text); border: 1.5px solid var(--danger-border);
+      border-radius: var(--radius-md); font-size: 14px; font-weight: 500;
+      cursor: pointer; margin-top: 8px;
+    }
+    #clear-log-btn:active { transform: scale(0.97); }
+    #orientation-toggle-btn {
+      width: 100%; padding: 10px; border-radius: var(--radius-md);
+      border: 1.5px solid var(--border-med); background: var(--card-bg);
+      color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer; text-align: center;
+    }
+    #orientation-toggle-btn.active-landscape,
+    #orientation-toggle-btn.active-portrait {
+      background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent);
+    }
+
+    /* ── Roster overlay ── */
+    #roster-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4); z-index: 250;
+      align-items: flex-start; justify-content: flex-end;
+    }
+    #roster-overlay.open { display: flex; }
+    #roster-panel {
+      background: var(--card-bg); width: min(380px, 92vw);
+      height: 100vh; padding: 1.5rem 1.25rem 2rem;
+      box-shadow: -4px 0 24px rgba(0,0,0,0.15); overflow-y: auto;
+    }
+    #roster-panel h2 {
+      font-size: 17px; font-weight: 600; color: var(--accent-dark);
+      margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;
+    }
+    #close-roster {
+      background: var(--accent-light); border: none; border-radius: var(--radius-md);
+      color: var(--accent-dark); font-size: 18px; width: 32px; height: 32px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; min-width: unset; flex: none;
+    }
+    #roster-textarea {
+      width: 100%; height: 240px; padding: 10px;
+      border: 1.5px solid var(--border-med); border-radius: var(--radius-md);
+      background: var(--card-bg); color: var(--text);
+      font-size: 13px; font-family: monospace; resize: vertical;
+    }
+    #roster-textarea:focus { outline: none; border-color: var(--accent); }
+    #roster-save-btn {
+      width: 100%; padding: 12px; background: var(--grad-main); color: #fff;
+      border: none; border-radius: var(--radius-md); font-size: 15px; font-weight: 700;
+      cursor: pointer; margin-top: 1rem; box-shadow: var(--shadow-btn);
+    }
+    #roster-save-btn:active { transform: scale(0.97); }
+    #roster-clear-btn {
+      width: 100%; padding: 10px; background: var(--danger-bg); color: var(--danger-text);
+      border: 1.5px solid var(--danger-border); border-radius: var(--radius-md);
+      font-size: 14px; font-weight: 500; cursor: pointer; margin-top: 8px;
+    }
+    #roster-clear-btn:active { transform: scale(0.97); }
+
+    /* ── Activity log viewer ── */
+    #log-viewer-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6); z-index: 300;
+      align-items: flex-start; justify-content: center;
+      padding: 1rem; overflow-y: auto;
+    }
+    #log-viewer-overlay.open { display: flex; }
+    #log-viewer-panel {
+      background: var(--card-bg); width: 100%; max-width: 700px;
+      border-radius: var(--radius-xl); overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.3); margin: auto;
+    }
+    #log-viewer-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
+      font-size: 16px; font-weight: 600; color: var(--accent-dark);
+    }
+    #close-log-viewer {
+      background: var(--accent-light); border: none; border-radius: var(--radius-md);
+      color: var(--accent-dark); font-size: 18px; width: 32px; height: 32px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      padding: 0; min-width: unset; flex: none;
+    }
+    #log-viewer-body { overflow-x: auto; max-height: calc(100vh - 8rem); overflow-y: auto; }
+    .sv-loading, .sv-empty, .sv-error { text-align: center; padding: 3rem; color: var(--text-muted); font-size: 14px; }
+    .sv-error { color: var(--danger-text); }
+    #sv-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px; }
+    #sv-table th {
+      text-align: left; padding: 9px 12px; color: var(--text-muted); font-weight: 600;
+      border-bottom: 1px solid var(--border); background: var(--card-bg2);
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; position: sticky; top: 0;
+    }
+    #sv-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    #sv-table tr:last-child td { border-bottom: none; }
 
     /* ── Scanner box ── */
     #scanner-box {
       position: relative; width: 100%; aspect-ratio: 8/3;
       background: #0d0a1a; border-radius: var(--radius-xl);
-      overflow: hidden; margin-bottom: 1rem;
-      border: 2px solid transparent;
+      overflow: hidden; margin-bottom: 1rem; border: 2px solid transparent;
       background-clip: padding-box;
       box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px var(--accent2), var(--shadow-card);
     }
@@ -268,9 +431,8 @@
     .corner.bl { bottom: 30px; left: 14px; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
     .corner.br { bottom: 30px; right: 14px; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
     #overlay-msg {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      text-align: center; color: #fff; font-size: 13px;
-      background: rgba(13,10,26,0.65); padding: 8px 0;
+      position: absolute; bottom: 0; left: 0; right: 0; text-align: center; color: #fff;
+      font-size: 13px; background: rgba(13,10,26,0.65); padding: 8px 0;
     }
     #scan-flash {
       position: absolute; inset: 0; background: rgba(167,139,218,0.3);
@@ -278,11 +440,10 @@
     }
     #scan-flash.flash { opacity: 1; }
 
-    /* ── Welcome overlay ── */
+    /* ── Scanner overlays ── */
     #welcome-overlay {
-      display: none; position: absolute; inset: 0;
-      border-radius: var(--radius-xl); flex-direction: column;
-      align-items: center; justify-content: center;
+      display: none; position: absolute; inset: 0; border-radius: var(--radius-xl);
+      flex-direction: column; align-items: center; justify-content: center;
       text-align: center; padding: 1.5rem; z-index: 10; cursor: pointer;
     }
     #welcome-overlay.show { display: flex; }
@@ -294,103 +455,44 @@
     .welcome-status { font-size: 14px; color: rgba(255,255,255,0.75); margin-top: 8px; }
     .welcome-tap    { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 16px; letter-spacing: 0.04em; }
 
-    /* ── Checkout overlay ── */
     #checkout-overlay {
-      display: none; position: absolute; inset: 0;
-      border-radius: var(--radius-xl); flex-direction: column;
-      align-items: center; justify-content: center;
+      display: none; position: absolute; inset: 0; border-radius: var(--radius-xl);
+      flex-direction: column; align-items: center; justify-content: center;
       text-align: center; padding: 1.5rem; z-index: 11;
-      background: rgba(21, 128, 61, 0.93);
+      background: rgba(21,128,61,0.93);
     }
     #checkout-overlay.show { display: flex; }
     .checkout-msg  { font-size: 28px; font-weight: 700; color: #fff; line-height: 1.3; }
     .checkout-sub  { font-size: 16px; color: rgba(255,255,255,0.85); margin-top: 10px; }
 
-    /* ── Spreadsheet viewer ── */
-    #sheet-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.4); z-index: 300; align-items: flex-start; justify-content: center;
-    }
-    #sheet-overlay.open { display: flex; }
-    #sheet-panel {
-      background: var(--card-bg); width: 100%; max-width: 700px; height: 100vh;
-      padding: 1.5rem 1.25rem 2rem; overflow-y: auto; box-shadow: 0 8px 40px rgba(0,0,0,0.2);
-    }
-    #sheet-panel h2 {
-      font-size: 17px; font-weight: 600; color: var(--accent-dark);
-      margin-bottom: 1.25rem; display: flex; justify-content: space-between; align-items: center;
-    }
-    #close-sheet {
-      background: var(--accent-light); border: none; border-radius: var(--radius-md);
-      color: var(--accent-dark); font-size: 18px; width: 32px; height: 32px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      padding: 0; min-width: unset; flex: none;
-    }
-    #sheet-refresh-btn {
-      width: 100%; padding: 10px; background: var(--accent-light);
-      color: var(--accent-dark); border: 1.5px solid var(--accent);
-      border-radius: var(--radius-md); font-size: 14px; font-weight: 500;
-      cursor: pointer; margin-bottom: 1rem;
-    }
-    #sheet-refresh-btn:active { transform: scale(0.97); }
-    #sheet-status { font-size: 12px; color: var(--text-muted); margin-bottom: 0.75rem; min-height: 18px; }
-    .sheet-table-wrapper { border: 1.5px solid var(--border); border-radius: var(--radius-lg); overflow: auto; }
-    #sheet-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 12px; }
-    #sheet-table th {
-      text-align: left; padding: 9px 10px; color: var(--text-muted); font-weight: 600;
-      border-bottom: 1px solid var(--border); background: var(--card-bg2);
-      font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;
-    }
-    #sheet-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; white-space: normal; word-break: break-word; }
-    #sheet-table tr:last-child td { border-bottom: none; }
-    #sheet-table th:nth-child(1), #sheet-table td:nth-child(1) { width: 72px; font-size: 11px; }
-    #sheet-table th:nth-child(2), #sheet-table td:nth-child(2) { width: 60px; font-size: 11px; }
-    #sheet-table .incident-cell { color: var(--danger-text); font-size: 11px; font-weight: 500; min-width: 140px; }
-    #sheet-empty { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 13px; }
-
-    /* ── Conflict warning overlay ── */
     #conflict-overlay {
-      display: none; position: absolute; inset: 0;
-      border-radius: var(--radius-xl); flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center; padding: 1.5rem; z-index: 18;
-      background: rgba(153, 27, 27, 0.94);
+      display: none; position: absolute; inset: 0; border-radius: var(--radius-xl);
+      flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 18; background: rgba(153,27,27,0.94);
     }
     #conflict-overlay.show { display: flex; }
-
-    /* ── Invalid ID overlay ── */
     #invalid-id-overlay {
-      display: none; position: absolute; inset: 0;
-      border-radius: var(--radius-xl); flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center; padding: 1.5rem; z-index: 17;
-      background: rgba(80, 10, 100, 0.94);
+      display: none; position: absolute; inset: 0; border-radius: var(--radius-xl);
+      flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 17; background: rgba(80,10,100,0.94);
     }
     #invalid-id-overlay.show { display: flex; }
-
-    /* ── Leave limit denied overlay ── */
     #limit-denied-overlay {
-      display: none; position: absolute; inset: 0;
-      border-radius: var(--radius-xl); flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center; padding: 1.5rem; z-index: 16;
-      background: rgba(146, 64, 14, 0.94);
+      display: none; position: absolute; inset: 0; border-radius: var(--radius-xl);
+      flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 16; background: rgba(146,64,14,0.94);
     }
     #limit-denied-overlay.show { display: flex; }
-    .conflict-icon  { font-size: 42px; margin-bottom: 10px; line-height: 1; }
-    .conflict-msg   { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.4; }
-    .conflict-sub   { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 8px; }
+    .conflict-icon { font-size: 42px; margin-bottom: 10px; line-height: 1; }
+    .conflict-msg  { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.4; }
+    .conflict-sub  { font-size: 13px; color: rgba(255,255,255,0.65); margin-top: 8px; }
 
-    /* ── PIN overlay ── */
     #pin-overlay {
-      display: none; position: absolute; inset: 0;
-      border-radius: var(--radius-xl); flex-direction: column;
-      align-items: center; justify-content: center;
-      text-align: center; padding: 1.5rem; z-index: 20;
-      background: rgba(15, 10, 40, 0.96);
+      display: none; position: absolute; inset: 0; border-radius: var(--radius-xl);
+      flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 1.5rem; z-index: 20; background: rgba(15,10,40,0.96);
     }
     #pin-overlay.show { display: flex; }
-    .pin-lock   { font-size: 36px; margin-bottom: 10px; line-height: 1; }
     .pin-title  { font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 20px; letter-spacing: 0.02em; }
     .pin-dots   { display: flex; gap: 14px; margin-bottom: 16px; }
     .pin-dot    { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.35); background: transparent; transition: background 0.15s, border-color 0.15s; }
@@ -398,7 +500,6 @@
     .pin-error  { font-size: 13px; color: #FDA4AF; font-weight: 500; opacity: 0; transition: opacity 0.2s; margin-top: 4px; }
     .pin-error.show { opacity: 1; }
     .pin-cancel { font-size: 12px; color: rgba(255,255,255,0.35); margin-top: 18px; cursor: pointer; letter-spacing: 0.04em; }
-    .pin-cancel:active { opacity: 0.6; }
 
     /* ── Buttons ── */
     .btn-row { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; }
@@ -409,10 +510,7 @@
       font-weight: 500; -webkit-tap-highlight-color: transparent; transition: transform 0.1s;
     }
     button:active { transform: scale(0.96); }
-    #start-btn {
-      background: var(--grad-start); color: #fff; border: none;
-      font-weight: 600; box-shadow: var(--shadow-btn);
-    }
+    #start-btn { background: var(--grad-start); color: #fff; border: none; font-weight: 600; box-shadow: var(--shadow-btn); }
 
     /* ── Manual entry ── */
     .manual-row { display: flex; gap: 8px; margin-bottom: 0.75rem; margin-top: 1.5rem; }
@@ -420,102 +518,25 @@
       flex: 1; padding: 12px 16px; border-radius: var(--radius-md);
       border: 2px solid var(--border-med); background: var(--card-bg);
       color: var(--text); font-size: 20px; font-weight: 600;
-      pointer-events: none; letter-spacing: 0.08em;
-      box-shadow: var(--shadow-card);
+      pointer-events: none; letter-spacing: 0.08em; box-shadow: var(--shadow-card);
     }
     .manual-row input::placeholder { color: var(--text-muted); font-weight: 400; font-size: 14px; letter-spacing: 0; }
 
     /* ── Number pad ── */
-    .numpad {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-      margin-bottom: 1.25rem;
-    }
-    @media (orientation: portrait) {
-      .numpad { margin-top: 1.5rem; }
-    }
+    .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+    @media (orientation: portrait) { .numpad { margin-top: 1.5rem; } }
     .numpad button {
-      touch-action: manipulation;
-      padding: 18px 8px; font-size: 22px; font-weight: 500;
+      touch-action: manipulation; padding: 18px 8px; font-size: 22px; font-weight: 500;
       border-radius: var(--radius-md); border: 1.5px solid var(--border-med);
       background: var(--card-bg); color: var(--text); cursor: pointer;
       min-width: unset; -webkit-tap-highlight-color: transparent;
       transition: transform 0.1s; box-shadow: var(--shadow-card);
     }
     .numpad button:active { transform: scale(0.93); }
-    .numpad .numpad-log {
-      background: var(--grad-main); color: #fff; border: none;
-      font-size: 16px; font-weight: 700; box-shadow: var(--shadow-btn);
-    }
+    .numpad .numpad-log { background: var(--grad-main); color: #fff; border: none; font-size: 16px; font-weight: 700; box-shadow: var(--shadow-btn); }
     .numpad .numpad-del { font-size: 20px; color: var(--text-muted); }
 
-    /* ── Clear log (settings) ── */
-    #view-sheet-btn {
-      width: 100%; padding: 10px; background: var(--accent-light);
-      color: var(--accent-dark); border: 1.5px solid var(--accent);
-      border-radius: var(--radius-md); font-size: 14px; font-weight: 500;
-      cursor: pointer; margin-top: 0;
-    }
-    #view-sheet-btn:active { transform: scale(0.97); }
-    #clear-log-btn {
-      width: 100%; padding: 10px; background: var(--danger-bg);
-      color: var(--danger-text); border: 1.5px solid var(--danger-border);
-      border-radius: var(--radius-md); font-size: 14px; font-weight: 500;
-      cursor: pointer; margin-top: 8px;
-    }
-    #clear-log-btn:active { transform: scale(0.97); }
-
-    /* ── View spreadsheet button ── */
-    #view-sheet-btn {
-      width: 100%; padding: 10px; background: var(--accent-light);
-      color: var(--accent-dark); border: 1.5px solid var(--accent);
-      border-radius: var(--radius-md); font-size: 14px; font-weight: 500;
-      cursor: pointer; margin-top: 8px;
-    }
-    #view-sheet-btn:active { transform: scale(0.97); }
-
-    /* ── Sheet viewer overlay ── */
-    #sheet-viewer-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.6); z-index: 300;
-      align-items: flex-start; justify-content: center;
-      padding: 1rem; overflow-y: auto;
-    }
-    #sheet-viewer-overlay.open { display: flex; }
-    #sheet-viewer-panel {
-      background: var(--card-bg); width: 100%; max-width: 700px;
-      border-radius: var(--radius-xl); overflow: hidden;
-      box-shadow: 0 8px 40px rgba(0,0,0,0.3);
-      margin: auto;
-    }
-    #sheet-viewer-header {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
-      font-size: 16px; font-weight: 600; color: var(--accent-dark);
-    }
-    #close-sheet-viewer {
-      background: var(--accent-light); border: none; border-radius: var(--radius-md);
-      color: var(--accent-dark); font-size: 18px; width: 32px; height: 32px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      padding: 0; min-width: unset; flex: none;
-    }
-    #sheet-viewer-body {
-      overflow-x: auto; max-height: calc(100vh - 8rem); overflow-y: auto;
-    }
-    .sv-loading, .sv-empty, .sv-error {
-      text-align: center; padding: 3rem; color: var(--text-muted); font-size: 14px;
-    }
-    .sv-error { color: var(--danger-text); }
-    #sv-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 500px; }
-    #sv-table th {
-      text-align: left; padding: 9px 12px; color: var(--text-muted); font-weight: 600;
-      border-bottom: 1px solid var(--border); background: var(--card-bg2);
-      font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
-      position: sticky; top: 0;
-    }
-    #sv-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); }
-    #sv-table tr:last-child td { border-bottom: none; }
-
-    /* ── Log ── */
+    /* ── Log table ── */
     #log-section { margin-bottom: 2rem; }
     #log-section h2 {
       font-size: 15px; font-weight: 700; margin-bottom: 10px;
@@ -523,14 +544,8 @@
       background: var(--grad-main); -webkit-background-clip: text;
       -webkit-text-fill-color: transparent; background-clip: text;
     }
-    .saved-note {
-      font-size: 11px; font-weight: 400;
-      background: none; -webkit-text-fill-color: var(--text-muted); color: var(--text-muted);
-    }
-    .log-wrapper {
-      background: var(--card-bg); border: 1.5px solid var(--border);
-      border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-card);
-    }
+    .saved-note { font-size: 11px; font-weight: 400; background: none; -webkit-text-fill-color: var(--text-muted); color: var(--text-muted); }
+    .log-wrapper { background: var(--card-bg); border: 1.5px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-card); }
     #log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
     #log-table th {
       text-align: left; padding: 10px 12px; color: var(--text-muted); font-weight: 600;
@@ -544,52 +559,19 @@
     .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
     .badge-out  { background: #FFF7ED; color: #C2410C; }
     .badge-in   { background: #F0FDF4; color: #15803D; }
-    .badge-late { background: #FFF1F2; color: #BE123C; }
-    .mins-cell { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
-    .mins-over { color: #BE123C; font-weight: 700; }
-    #empty-msg { text-align: center; padding: 2.5rem; color: var(--text-muted); font-size: 13px; }
+    .mins-cell  { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+    .mins-over  { color: #BE123C; font-weight: 700; }
+    #empty-msg  { text-align: center; padding: 2.5rem; color: var(--text-muted); font-size: 13px; }
 
-    /* ── Orientation toggle ── */
-    #orientation-toggle-btn {
-      width: 100%; padding: 10px; border-radius: var(--radius-md);
-      border: 1.5px solid var(--border-med); background: var(--card-bg);
-      color: var(--text); font-size: 14px; font-weight: 500; cursor: pointer;
-      text-align: center;
-    }
-    #orientation-toggle-btn.active-landscape,
-    #orientation-toggle-btn.active-portrait {
-      background: var(--accent-light); color: var(--accent-dark);
-      border-color: var(--accent);
-    }
-
-    /* ── Landscape two-column layout ── */
+    /* ── Landscape layout ── */
     #landscape-left  { display: contents; }
     #landscape-right { display: contents; }
-
-    #app.landscape-layout {
-      display: flex;
-      flex-direction: row;
-      align-items: flex-start;
-      gap: 0;
-      max-width: 100%;
-      padding: 0.6rem 0.75rem;
-    }
-    #app.landscape-layout #landscape-left {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-width: 0;
-    }
+    #app.landscape-layout { display: flex; flex-direction: row; align-items: flex-start; gap: 0; max-width: 100%; padding: 0.6rem 0.75rem; }
+    #app.landscape-layout #landscape-left  { display: flex; flex-direction: column; flex: 1; min-width: 0; }
     #app.landscape-layout #landscape-right {
-      display: flex;
-      flex-direction: column;
-      width: 44%;
-      flex-shrink: 0;
-      justify-content: center;
-      gap: 0.5rem;
-      border-left: 1.5px solid var(--border-med);
-      padding-left: 1.25rem;
-      margin-left: 1.25rem;
+      display: flex; flex-direction: column; width: 44%; flex-shrink: 0;
+      justify-content: center; gap: 0.5rem; border-left: 1.5px solid var(--border-med);
+      padding-left: 1.25rem; margin-left: 1.25rem;
     }
     #app.landscape-layout #landscape-left header { margin-bottom: 0.6rem; }
     #app.landscape-layout #scanner-box { margin-bottom: 0.5rem; }
@@ -610,38 +592,134 @@
   </style>
 </head>
 <body>
-<div id="app">
+
+<!-- ═══════ AUTH VIEW ═══════ -->
+<div id="auth-view">
+  <div class="auth-container">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🚻</div>
+      <h1 class="auth-title">Pass Manager</h1>
+      <p class="auth-subtitle">Restroom Pass Tracker for Schools</p>
+    </div>
+
+    <div class="auth-card" id="login-form">
+      <h2 class="auth-card-title">Welcome back</h2>
+      <div class="auth-field">
+        <label class="auth-label">Email</label>
+        <input type="email" id="login-email" class="auth-input" placeholder="you@school.edu" autocomplete="email" />
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Password</label>
+        <input type="password" id="login-password" class="auth-input" placeholder="••••••••" autocomplete="current-password" />
+      </div>
+      <div class="auth-error" id="login-error"></div>
+      <button class="auth-btn-primary" onclick="doLogin()">Sign In</button>
+      <p class="auth-switch">Don't have an account? <span onclick="showSignupForm()">Create account</span></p>
+    </div>
+
+    <div class="auth-card" id="signup-form" style="display:none">
+      <h2 class="auth-card-title">Create account</h2>
+      <div class="auth-field">
+        <label class="auth-label">Your name</label>
+        <input type="text" id="signup-name" class="auth-input" placeholder="Ms. Smith" autocomplete="name" />
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Email</label>
+        <input type="email" id="signup-email" class="auth-input" placeholder="you@school.edu" autocomplete="email" />
+      </div>
+      <div class="auth-field">
+        <label class="auth-label">Password</label>
+        <input type="password" id="signup-password" class="auth-input" placeholder="At least 6 characters" autocomplete="new-password" />
+      </div>
+      <div class="auth-error" id="signup-error"></div>
+      <button class="auth-btn-primary" onclick="doSignup()">Create Account</button>
+      <p class="auth-switch">Already have an account? <span onclick="showLoginForm()">Sign in</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ CLASSROOM VIEW ═══════ -->
+<div id="classroom-view" style="display:none">
+  <div class="cv-container">
+    <div class="cv-header">
+      <div>
+        <h1 class="cv-title">My Classrooms</h1>
+        <p class="cv-subtitle" id="cv-welcome"></p>
+      </div>
+      <button class="cv-signout-btn" onclick="doSignOut()">Sign out</button>
+    </div>
+
+    <button class="cv-new-btn" onclick="showCreateClassroom()">+ New Classroom</button>
+
+    <div id="create-form" style="display:none">
+      <div class="create-classroom-card">
+        <div class="auth-field">
+          <label class="auth-label">Classroom name</label>
+          <input type="text" id="new-classroom-name" class="auth-input" placeholder="e.g. Period 2 — Biology" />
+        </div>
+        <div class="create-btn-row">
+          <button class="cv-create-btn" onclick="doCreateClassroom()">Create</button>
+          <button class="cv-cancel-btn" onclick="hideCreateClassroom()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="classroom-list">
+      <p class="cv-loading">Loading your classrooms…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SCANNER VIEW ═══════ -->
+<div id="app" style="display:none">
 
   <!-- Settings drawer -->
   <div id="settings-overlay" onclick="overlayClick(event)">
     <div id="settings-panel">
       <h2>Settings <button id="close-settings" onclick="closeSettings()">✕</button></h2>
 
+      <div class="setting-section-title">Classroom</div>
+      <div class="setting-group">
+        <div class="setting-label">Name</div>
+        <div class="setting-input-row">
+          <input type="text" id="setting-classroom-name" placeholder="Classroom name" style="width:100%;" />
+        </div>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label">Settings PIN</div>
+        <div class="setting-desc">4-digit PIN required to open settings. Leave blank to keep current PIN.</div>
+        <div class="setting-input-row">
+          <input type="text" id="setting-pin" inputmode="numeric" maxlength="4" placeholder="New PIN (4 digits)" style="width:100px;text-align:center;" />
+          <span class="setting-unit">4 digits</span>
+        </div>
+      </div>
+
+      <hr class="setting-divider" />
       <div class="setting-section-title">Behavior</div>
 
       <div class="setting-group">
         <div class="setting-label">Max time away</div>
         <div class="setting-desc">Students gone longer than this are flagged when they return.</div>
         <div class="setting-input-row">
-          <input type="number" id="setting-max-time" inputmode="numeric" pattern="[0-9]*" min="1" max="60" value="15" />
+          <input type="number" id="setting-max-time" inputmode="numeric" min="1" max="60" value="15" />
           <span class="setting-unit">minutes</span>
         </div>
       </div>
 
       <div class="setting-group">
         <div class="setting-label">Max leaves per day</div>
-        <div class="setting-desc">Students who exceed this number of checkouts today will be denied. Set to 0 for no limit.</div>
+        <div class="setting-desc">Students who exceed this will be denied. 0 = no limit.</div>
         <div class="setting-input-row">
-          <input type="number" id="setting-max-daily" inputmode="numeric" pattern="[0-9]*" min="0" max="20" value="0" />
+          <input type="number" id="setting-max-daily" inputmode="numeric" min="0" max="20" value="0" />
           <span class="setting-unit">per day</span>
         </div>
       </div>
 
       <div class="setting-group">
         <div class="setting-label">Max leaves per 7 days</div>
-        <div class="setting-desc">Students who exceed this number of checkouts in the last 7 days will be denied. Set to 0 for no limit.</div>
+        <div class="setting-desc">Students who exceed this will be denied. 0 = no limit.</div>
         <div class="setting-input-row">
-          <input type="number" id="setting-max-weekly" inputmode="numeric" pattern="[0-9]*" min="0" max="50" value="0" />
+          <input type="number" id="setting-max-weekly" inputmode="numeric" min="0" max="50" value="0" />
           <span class="setting-unit">per 7 days</span>
         </div>
       </div>
@@ -652,53 +730,47 @@
         <button id="orientation-toggle-btn" onclick="toggleOrientation()">⟳ Auto</button>
       </div>
 
-      <hr class="setting-divider" />
-      <div class="setting-section-title">Spreadsheet</div>
-      <button id="view-sheet-btn" onclick="openSheetViewer()">View spreadsheet</button>
-
-      <hr class="setting-divider" />
-      <div class="setting-section-title">Google Sheets sync</div>
-
-      <div class="setting-group">
-        <div class="setting-label">Web App URL</div>
-        <div class="setting-desc">Paste the URL from your deployed Google Apps Script here. Every scan will be written to your sheet automatically.</div>
-        <div class="setting-input-row">
-          <input type="url" id="setting-sheet-url" placeholder="https://script.google.com/macros/s/…/exec" />
-        </div>
-      </div>
-
-      <button id="test-connection-btn" onclick="testConnection()">Test connection</button>
-      <div id="connection-result"></div>
-      <button id="view-sheet-btn" onclick="openSheetViewer()">View spreadsheet</button>
-
-      <br/>
       <button id="save-settings" onclick="saveSettings()">Save settings</button>
 
       <hr class="setting-divider" />
+      <div class="setting-section-title">Data</div>
+      <button class="settings-action-btn" onclick="openLogViewer()">View activity log</button>
+      <button class="settings-action-btn" onclick="openRosterManager()">Manage student roster</button>
+
+      <hr class="setting-divider" />
+      <div class="setting-section-title">Account</div>
+      <button id="switch-classroom-btn" onclick="switchClassroom()">Switch classroom</button>
+
+      <hr class="setting-divider" />
       <div class="setting-section-title">Danger zone</div>
-      <div class="setting-desc">This will permanently delete the local log and clear the connected sheet.</div>
+      <div class="setting-desc">Permanently deletes all pass records for this classroom.</div>
       <button id="clear-log-btn" onclick="clearLog()">Clear log</button>
     </div>
   </div>
 
-  <!-- Spreadsheet viewer -->
-  <div id="sheet-overlay" onclick="sheetOverlayClick(event)">
-    <div id="sheet-panel">
-      <h2>Spreadsheet Log <button id="close-sheet" onclick="closeSheetViewer()">✕</button></h2>
-      <button id="sheet-refresh-btn" onclick="loadSheetData()">↻ Refresh</button>
-      <div id="sheet-status"></div>
-      <div class="sheet-table-wrapper">
-        <table id="sheet-table">
-          <thead>
-            <tr>
-              <th>Date</th><th>Time</th><th>Student ID</th><th>Name</th><th>Action</th><th>Mins</th><th>Incident</th>
-            </tr>
-          </thead>
-          <tbody id="sheet-body">
-            <tr><td colspan="7" id="sheet-empty">Loading…</td></tr>
-          </tbody>
-        </table>
+  <!-- Roster manager -->
+  <div id="roster-overlay" onclick="rosterOverlayClick(event)">
+    <div id="roster-panel">
+      <h2>Student Roster <button id="close-roster" onclick="closeRosterManager()">✕</button></h2>
+      <p class="setting-desc" style="margin-bottom:1rem;line-height:1.6;">
+        One student per line. Format: <strong>ID,Name</strong> or just <strong>ID</strong>.<br/>
+        Saving replaces the entire roster. Clear roster to accept any ID.
+      </p>
+      <textarea id="roster-textarea" placeholder="12345,Jane Doe&#10;67890,John Smith&#10;11111"></textarea>
+      <p id="roster-count" style="font-size:12px;color:var(--text-muted);margin-top:6px;"></p>
+      <button id="roster-save-btn" onclick="saveRoster()">Save Roster</button>
+      <button id="roster-clear-btn" onclick="clearRoster()">Clear Roster (accept any ID)</button>
+    </div>
+  </div>
+
+  <!-- Activity log viewer -->
+  <div id="log-viewer-overlay" onclick="logViewerOverlayClick(event)">
+    <div id="log-viewer-panel">
+      <div id="log-viewer-header">
+        <span>Activity Log</span>
+        <button id="close-log-viewer" onclick="closeLogViewer()">✕</button>
       </div>
+      <div id="log-viewer-body"></div>
     </div>
   </div>
 
@@ -707,13 +779,16 @@
     <div class="header-left">
       <div class="header-titles">
         <h1>Restroom Pass Manager</h1>
-        <p class="subtitle">Scan a student ID to check out or check in</p>
+        <button class="classroom-chip" id="classroom-chip" onclick="switchClassroom()">
+          <span id="classroom-name-label">—</span>
+          <span class="chip-arrow">↩</span>
+        </button>
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:10px;">
       <div id="sync-status">
-        <div class="sync-dot" id="sync-dot"></div>
-        <span id="sync-label">no sheet</span>
+        <div class="sync-dot ok" id="sync-dot"></div>
+        <span id="sync-label">live</span>
       </div>
       <button id="hamburger" onclick="openSettings()" aria-label="Settings">
         <span></span><span></span><span></span>
@@ -721,7 +796,6 @@
     </div>
   </header>
 
-  <!-- Scanner -->
   <div id="scanner-box">
     <video id="video" playsinline autoplay muted></video>
     <div id="scan-line"></div>
@@ -734,7 +808,7 @@
     </div>
     <div id="welcome-overlay" onclick="dismissWelcome()">
       <div class="welcome-emoji" id="welcome-emoji">✅</div>
-      <div class="welcome-name"  id="welcome-name">Student ID</div>
+      <div class="welcome-name"  id="welcome-name">Welcome Back!</div>
       <div class="welcome-time"  id="welcome-time">Gone 4 min</div>
       <div class="welcome-status" id="welcome-status">Within time limit</div>
       <div class="welcome-tap">Tap to dismiss</div>
@@ -768,16 +842,16 @@
   </div>
 
   <div class="btn-row">
-    <button id="start-btn" onclick="toggleCamera()">Tap to Scan ID</button>
+    <button id="start-btn" onclick="toggleCamera()">Start scanning</button>
   </div>
 
   <div id="log-section">
-    <h2>Activity log <span class="saved-note" id="saved-note"></span></h2>
+    <h2>Currently out <span class="saved-note" id="saved-note"></span></h2>
     <div class="log-wrapper">
       <table id="log-table">
-        <thead><tr><th>Time</th><th>Name</th><th>Action</th><th>Mins</th></tr></thead>
+        <thead><tr><th>Time</th><th>Name / ID</th><th>Action</th><th>Mins</th></tr></thead>
         <tbody id="log-body">
-          <tr><td colspan="4" id="empty-msg">No scans yet</td></tr>
+          <tr><td colspan="4" id="empty-msg">No students currently out</td></tr>
         </tbody>
       </table>
     </div>
@@ -789,7 +863,6 @@
     <input id="manual-input" type="text" inputmode="none" readonly
            placeholder="Use the keypad below to enter your Student ID…" />
   </div>
-
   <div class="numpad">
     <button onclick="numpadPress('1')">1</button>
     <button onclick="numpadPress('2')">2</button>
@@ -802,128 +875,493 @@
     <button onclick="numpadPress('9')">9</button>
     <button class="numpad-del" onclick="numpadDelete()">⌫</button>
     <button onclick="numpadPress('0')">0</button>
-    <button class="numpad-log" onclick="manualLog()">Check In / Out</button>
+    <button class="numpad-log" onclick="manualLog()">Log</button>
   </div>
   </div><!-- end landscape-right -->
-</div>
 
-<!-- Sheet viewer modal -->
-<div id="sheet-viewer-overlay" onclick="sheetViewerOverlayClick(event)">
-  <div id="sheet-viewer-panel">
-    <div id="sheet-viewer-header">
-      <span>Spreadsheet History</span>
-      <button id="close-sheet-viewer" onclick="closeSheetViewer()">✕</button>
-    </div>
-    <div id="sheet-viewer-body"></div>
-  </div>
-</div>
+</div><!-- end app -->
 
 <div class="toast" id="toast"></div>
 
-<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
 <script>
-  /* ── Storage keys ── */
-  const STORAGE_KEY   = 'restroom_pass_log';
-  const STATUS_KEY    = 'restroom_pass_status';
-  const CHECKOUT_KEY  = 'restroom_checkout_times';
-  const SETTINGS_KEY  = 'restroom_settings';
-  const DEFAULT_URL   = 'https://script.google.com/macros/s/AKfycbx3QNCjfb4wXYZkW5TpsKLrzKFHLUcJmxxFZGh2FwDmW9JBCAubFw15GvmY4ltexKs/exec';
-  const SETTINGS_PIN  = '5700';
+  /* ═══════════════════════════════════════════════════════════
+     FIREBASE CONFIG
+     1. Go to console.firebase.google.com
+     2. Create project → Add Web App → copy config below
+     3. Enable Authentication → Email/Password
+     4. Enable Firestore → Create database
+     5. Set Firestore security rules (see firestore.rules file)
+     6. Add composite index in Firestore console:
+        Collection group: log
+        Fields: id (ASC), action (ASC), timestamp (ASC)
+  ════════════════════════════════════════════════════════════ */
+  const firebaseConfig = {
+    apiKey:            "AIzaSyBtlAi6vHObWml9tTnfLJh6ixvmGukOhxY",
+    authDomain:        "hallpassmanager-d2fb3.firebaseapp.com",
+    projectId:         "hallpassmanager-d2fb3",
+    storageBucket:     "hallpassmanager-d2fb3.firebasestorage.app",
+    messagingSenderId: "430651597016",
+    appId:             "1:430651597016:web:e01d78efc7a86103fef7ad"
+  };
 
-  /* ── Runtime state ── */
-  let cameraOn      = false;
-  let codeReader    = null;
-  let lastScanned   = '';
-  let lastScanTime  = 0;
-  let log           = [];
-  let studentStatus = {};
-  let checkoutTimes = {};
-  let syncError     = false;
-  let settings      = { maxMinutes: 15, sheetUrl: DEFAULT_URL, maxDailyLeaves: 0, maxWeeklyLeaves: 0, forcedOrientation: null };
-  let pinMode       = false;
-  let pinBuffer     = '';
-  let roster        = null; // null = not loaded yet; Map<id,name> when loaded
+  /* Show setup instructions if config hasn't been filled in */
+  if (firebaseConfig.apiKey.startsWith('REPLACE')) {
+    document.getElementById('auth-view').innerHTML = `
+      <div class="auth-container">
+        <div class="auth-logo">
+          <div class="auth-logo-icon">⚙️</div>
+          <h1 class="auth-title">Setup Required</h1>
+        </div>
+        <div class="auth-card">
+          <h2 class="auth-card-title">Firebase not configured</h2>
+          <p style="color:var(--text-muted);font-size:14px;line-height:1.7;margin-bottom:1rem;">
+            Open this HTML file and paste your Firebase project config into the <code>firebaseConfig</code> object near the bottom of the file.
+          </p>
+          <ol style="color:var(--text);font-size:13px;line-height:2.2;padding-left:1.25rem;">
+            <li>Go to <strong>console.firebase.google.com</strong></li>
+            <li>Create a project → Add a Web App</li>
+            <li>Copy the config values into this file</li>
+            <li>Enable <strong>Authentication → Email/Password</strong></li>
+            <li>Enable <strong>Firestore Database</strong></li>
+            <li>Deploy <strong>firestore.rules</strong> from this folder</li>
+          </ol>
+        </div>
+      </div>`;
+    throw new Error('Firebase not configured — edit firebaseConfig in index.html');
+  }
 
-  /* ═══════════════════════════════
-     SETTINGS
-  ═══════════════════════════════ */
-  function loadSettings() {
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db   = firebase.firestore();
+  db.enablePersistence().catch(() => {}); // offline support
+
+  /* ═══════════════════════════════════════════════════════════
+     STATE
+  ════════════════════════════════════════════════════════════ */
+  let currentUser        = null;
+  let currentClassroomId = null;
+  let classroomPIN       = '5700';
+  let log                = [];
+  let studentStatus      = {};
+  let checkoutTimes      = {};
+  let roster             = null; // null = accept any ID; Map<id,name> = validated
+  let settings           = { maxMinutes: 15, maxDailyLeaves: 0, maxWeeklyLeaves: 0, forcedOrientation: null };
+  let cameraOn           = false;
+  let codeReader         = null;
+  let lastScanned        = '';
+  let lastScanTime       = 0;
+  let pinMode            = false;
+  let pinBuffer          = '';
+  let unsubStatus        = null;
+  let unsubLog           = null;
+
+  /* ═══════════════════════════════════════════════════════════
+     VIEW MANAGEMENT
+  ════════════════════════════════════════════════════════════ */
+  function showView(name) {
+    document.getElementById('auth-view').style.display      = name === 'auth'      ? '' : 'none';
+    document.getElementById('classroom-view').style.display = name === 'classroom' ? '' : 'none';
+    document.getElementById('app').style.display            = name === 'scanner'   ? '' : 'none';
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     AUTH
+  ════════════════════════════════════════════════════════════ */
+  function showLoginForm() {
+    document.getElementById('login-form').style.display  = '';
+    document.getElementById('signup-form').style.display = 'none';
+    document.getElementById('login-error').textContent   = '';
+  }
+
+  function showSignupForm() {
+    document.getElementById('login-form').style.display  = 'none';
+    document.getElementById('signup-form').style.display = '';
+    document.getElementById('signup-error').textContent  = '';
+  }
+
+  async function doLogin() {
+    const email    = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl    = document.getElementById('login-error');
+    errEl.textContent = '';
+    if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; return; }
     try {
-      const s = localStorage.getItem(SETTINGS_KEY);
-      if (s) settings = Object.assign(settings, JSON.parse(s));
-    } catch(e) {}
-    if (!settings.sheetUrl) settings.sheetUrl = DEFAULT_URL;
-    document.getElementById('setting-max-time').value   = settings.maxMinutes;
-    document.getElementById('setting-max-daily').value  = settings.maxDailyLeaves;
-    document.getElementById('setting-max-weekly').value = settings.maxWeeklyLeaves;
-    document.getElementById('setting-sheet-url').value  = settings.sheetUrl;
-    updateSyncIndicator();
-    applyOrientation();
+      await auth.signInWithEmailAndPassword(email, password);
+    } catch (e) {
+      errEl.textContent = friendlyAuthError(e.code);
+    }
   }
 
-  function saveSettings() {
-    settings.maxMinutes      = parseInt(document.getElementById('setting-max-time').value)   || 15;
-    settings.maxDailyLeaves  = parseInt(document.getElementById('setting-max-daily').value)  || 0;
-    settings.maxWeeklyLeaves = parseInt(document.getElementById('setting-max-weekly').value) || 0;
-    settings.sheetUrl        = document.getElementById('setting-sheet-url').value.trim();
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
-    updateSyncIndicator();
-    syncReadRoster();
+  async function doSignup() {
+    const name     = document.getElementById('signup-name').value.trim();
+    const email    = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+    const errEl    = document.getElementById('signup-error');
+    errEl.textContent = '';
+    if (!name || !email || !password) { errEl.textContent = 'Please fill in all fields.'; return; }
+    if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+    try {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      await cred.user.updateProfile({ displayName: name });
+      await db.collection('teachers').doc(cred.user.uid).set({
+        displayName: name, email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) {
+      document.getElementById('signup-error').textContent = friendlyAuthError(e.code);
+    }
+  }
+
+  async function doSignOut() {
+    if (cameraOn) stopCamera();
+    detachListeners();
+    currentClassroomId = null;
+    log = []; studentStatus = {}; checkoutTimes = {}; roster = null;
+    await auth.signOut();
+  }
+
+  function friendlyAuthError(code) {
+    const msgs = {
+      'auth/user-not-found':         'No account found with that email.',
+      'auth/wrong-password':         'Incorrect password.',
+      'auth/invalid-credential':     'Invalid email or password.',
+      'auth/email-already-in-use':   'An account with this email already exists.',
+      'auth/invalid-email':          'Please enter a valid email address.',
+      'auth/weak-password':          'Password must be at least 6 characters.',
+      'auth/too-many-requests':      'Too many attempts. Please try again later.',
+      'auth/network-request-failed': 'Network error. Check your connection.'
+    };
+    return msgs[code] || 'An error occurred. Please try again.';
+  }
+
+  /* Enter key support for auth forms */
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('login-email').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('login-password').focus();
+    });
+    document.getElementById('login-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+    document.getElementById('signup-password').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doSignup();
+    });
+    document.getElementById('new-classroom-name').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doCreateClassroom();
+    });
+  });
+
+  auth.onAuthStateChanged(user => {
+    currentUser = user;
+    if (!user) { showView('auth'); return; }
+    showView('classroom');
+    document.getElementById('cv-welcome').textContent =
+      'Welcome, ' + (user.displayName || user.email) + '!';
+    loadClassrooms();
+  });
+
+  /* ═══════════════════════════════════════════════════════════
+     CLASSROOM MANAGEMENT
+  ════════════════════════════════════════════════════════════ */
+  function showCreateClassroom() {
+    document.getElementById('create-form').style.display = '';
+    setTimeout(() => document.getElementById('new-classroom-name').focus(), 50);
+  }
+
+  function hideCreateClassroom() {
+    document.getElementById('create-form').style.display = 'none';
+    document.getElementById('new-classroom-name').value  = '';
+  }
+
+  async function loadClassrooms() {
+    const list = document.getElementById('classroom-list');
+    list.innerHTML = '<p class="cv-loading">Loading your classrooms…</p>';
+    try {
+      const snap = await db.collection('classrooms')
+        .where('teacherId', '==', currentUser.uid)
+        .orderBy('createdAt', 'asc')
+        .get();
+      list.innerHTML = '';
+      if (snap.empty) {
+        list.innerHTML = '<p class="cv-empty">No classrooms yet. Create one above to get started!</p>';
+        return;
+      }
+      snap.forEach(doc => list.appendChild(buildClassroomCard(doc.id, doc.data())));
+    } catch (e) {
+      list.innerHTML = '<p class="cv-empty">Error loading classrooms. Please refresh.</p>';
+    }
+  }
+
+  function buildClassroomCard(id, data) {
+    const card = document.createElement('div');
+    card.className = 'classroom-card';
+    const created = data.createdAt
+      ? new Date(data.createdAt.toDate()).toLocaleDateString() : 'recently';
+    const safeName = (data.name || 'Unnamed Classroom').replace(/'/g, "\\'");
+    card.innerHTML = `
+      <div class="cc-info">
+        <div class="cc-name">${data.name || 'Unnamed Classroom'}</div>
+        <div class="cc-meta">Created ${created}</div>
+      </div>
+      <div class="cc-actions">
+        <button class="cc-open-btn" onclick="openClassroom('${id}')">Open</button>
+        <button class="cc-delete-btn" onclick="deleteClassroom('${id}','${safeName}')">✕</button>
+      </div>`;
+    return card;
+  }
+
+  async function doCreateClassroom() {
+    const name = document.getElementById('new-classroom-name').value.trim();
+    if (!name) { showToast('Please enter a classroom name', 'neutral'); return; }
+    try {
+      await db.collection('classrooms').add({
+        teacherId: currentUser.uid,
+        name,
+        pin: '5700',
+        settings: { maxMinutes: 15, maxDailyLeaves: 0, maxWeeklyLeaves: 0, forcedOrientation: null },
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      hideCreateClassroom();
+      loadClassrooms();
+    } catch (e) {
+      showToast('Error creating classroom', 'neutral');
+    }
+  }
+
+  async function deleteClassroom(id, name) {
+    if (!confirm(`Delete "${name}"?\n\nThis permanently deletes all log entries and the student roster. This cannot be undone.`)) return;
+    try {
+      for (const sub of ['log', 'status', 'roster']) {
+        const snap = await db.collection('classrooms').doc(id).collection(sub).get();
+        if (!snap.empty) {
+          const batch = db.batch();
+          snap.forEach(doc => batch.delete(doc.ref));
+          await batch.commit();
+        }
+      }
+      await db.collection('classrooms').doc(id).delete();
+      loadClassrooms();
+    } catch (e) {
+      showToast('Error deleting classroom', 'neutral');
+    }
+  }
+
+  async function openClassroom(classroomId) {
+    try {
+      const docSnap = await db.collection('classrooms').doc(classroomId).get();
+      if (!docSnap.exists) { showToast('Classroom not found', 'neutral'); return; }
+
+      const data = docSnap.data();
+      currentClassroomId = classroomId;
+      classroomPIN       = data.pin || '5700';
+
+      const s = data.settings || {};
+      settings.maxMinutes        = s.maxMinutes        || 15;
+      settings.maxDailyLeaves    = s.maxDailyLeaves    || 0;
+      settings.maxWeeklyLeaves   = s.maxWeeklyLeaves   || 0;
+      settings.forcedOrientation = s.forcedOrientation || null;
+
+      document.getElementById('setting-classroom-name').value = data.name || '';
+      document.getElementById('setting-pin').value            = '';
+      document.getElementById('setting-max-time').value       = settings.maxMinutes;
+      document.getElementById('setting-max-daily').value      = settings.maxDailyLeaves;
+      document.getElementById('setting-max-weekly').value     = settings.maxWeeklyLeaves;
+      document.getElementById('classroom-name-label').textContent = data.name || 'Classroom';
+
+      log = []; studentStatus = {}; checkoutTimes = {}; roster = null;
+      lastScanned = ''; lastScanTime = 0;
+
+      await loadRoster(classroomId);
+      attachListeners(classroomId);
+      applyOrientation();
+      updateSyncIndicator('ok');
+      showView('scanner');
+      updateTable();
+      updateTheme();
+    } catch (e) {
+      showToast('Error opening classroom', 'neutral');
+    }
+  }
+
+  function switchClassroom() {
+    if (cameraOn) stopCamera();
+    detachListeners();
+    currentClassroomId = null;
+    log = []; studentStatus = {}; checkoutTimes = {}; roster = null;
     closeSettings();
-    showToast('Settings saved', 'neutral');
+    showView('classroom');
+    loadClassrooms();
   }
 
-  function openSettings()  { showPinPrompt(); }
-  function closeSettings() {
-    document.getElementById('settings-overlay').classList.remove('open');
-    document.getElementById('connection-result').style.display = 'none';
+  /* ═══════════════════════════════════════════════════════════
+     FIRESTORE LISTENERS
+  ════════════════════════════════════════════════════════════ */
+  function attachListeners(classroomId) {
+    detachListeners();
+
+    /* Student status — small collection, real-time */
+    unsubStatus = db.collection('classrooms').doc(classroomId)
+      .collection('status')
+      .onSnapshot(snap => {
+        const newStatus = {};
+        const newTimes  = {};
+        snap.forEach(doc => {
+          const d = doc.data();
+          newStatus[doc.id] = d.status;
+          if (d.status === 'out' && d.checkoutTimestamp) newTimes[doc.id] = d.checkoutTimestamp;
+        });
+        studentStatus = newStatus;
+        checkoutTimes = newTimes;
+        updateTable();
+        updateTheme();
+        updateSyncIndicator('ok');
+      }, () => updateSyncIndicator('error'));
+
+    /* Log — latest 300 entries, newest first */
+    unsubLog = db.collection('classrooms').doc(classroomId)
+      .collection('log')
+      .orderBy('timestamp', 'desc')
+      .limit(300)
+      .onSnapshot(snap => {
+        log = snap.docs.map(doc => {
+          const d = doc.data();
+          return {
+            date: d.date, time: d.time, id: d.id, name: d.name,
+            action: d.action, minsGone: d.minsGone,
+            checkoutTimestamp: d.checkoutTimestamp, incident: d.incident || ''
+          };
+        });
+      });
   }
+
+  function detachListeners() {
+    if (unsubStatus) { unsubStatus(); unsubStatus = null; }
+    if (unsubLog)    { unsubLog();    unsubLog    = null; }
+  }
+
+  async function loadRoster(classroomId) {
+    try {
+      const snap = await db.collection('classrooms').doc(classroomId).collection('roster').get();
+      if (snap.empty) { roster = null; return; }
+      roster = new Map();
+      snap.forEach(doc => {
+        const d = doc.data();
+        roster.set(String(d.id || doc.id).trim(), d.name || '');
+      });
+    } catch (e) {
+      roster = null;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SETTINGS
+  ════════════════════════════════════════════════════════════ */
+  function openSettings()  { showPinPrompt(); }
+  function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
   function overlayClick(e) {
     if (e.target === document.getElementById('settings-overlay')) closeSettings();
   }
 
-  /* ── PIN prompt ── */
+  async function saveSettings() {
+    settings.maxMinutes      = parseInt(document.getElementById('setting-max-time').value)   || 15;
+    settings.maxDailyLeaves  = parseInt(document.getElementById('setting-max-daily').value)  || 0;
+    settings.maxWeeklyLeaves = parseInt(document.getElementById('setting-max-weekly').value) || 0;
+
+    const newName = document.getElementById('setting-classroom-name').value.trim();
+    const newPin  = document.getElementById('setting-pin').value.trim();
+
+    if (newPin && !/^\d{4}$/.test(newPin)) {
+      showToast('PIN must be exactly 4 digits', 'neutral');
+      return;
+    }
+
+    const update = {
+      settings: {
+        maxMinutes:        settings.maxMinutes,
+        maxDailyLeaves:    settings.maxDailyLeaves,
+        maxWeeklyLeaves:   settings.maxWeeklyLeaves,
+        forcedOrientation: settings.forcedOrientation || null
+      }
+    };
+    if (newName) update.name = newName;
+    if (newPin)  { update.pin = newPin; classroomPIN = newPin; }
+
+    try {
+      await db.collection('classrooms').doc(currentClassroomId).update(update);
+      if (newName) document.getElementById('classroom-name-label').textContent = newName;
+      document.getElementById('setting-pin').value = '';
+      applyOrientation();
+      closeSettings();
+      showToast('Settings saved', 'neutral');
+    } catch (e) {
+      showToast('Error saving settings', 'neutral');
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     SYNC INDICATOR
+  ════════════════════════════════════════════════════════════ */
+  function updateSyncIndicator(state) {
+    const dot   = document.getElementById('sync-dot');
+    const label = document.getElementById('sync-label');
+    if (!state || !navigator.onLine) {
+      dot.className     = 'sync-dot';
+      dot.style.background = '#f5a623';
+      label.textContent = 'offline';
+    } else if (state === 'error') {
+      dot.className     = 'sync-dot error';
+      dot.style.background = '';
+      label.textContent = 'error';
+    } else {
+      dot.className     = 'sync-dot ok';
+      dot.style.background = '';
+      label.textContent = 'live';
+    }
+  }
+
+  window.addEventListener('online',  () => updateSyncIndicator('ok'));
+  window.addEventListener('offline', () => updateSyncIndicator(null));
+
+  /* ═══════════════════════════════════════════════════════════
+     PIN PROMPT
+  ════════════════════════════════════════════════════════════ */
   function showPinPrompt() {
-    pinMode   = true;
-    pinBuffer = '';
+    pinMode = true; pinBuffer = '';
     updatePinDots();
     document.getElementById('pin-error').classList.remove('show');
     document.getElementById('pin-overlay').classList.add('show');
   }
 
   function hidePinPrompt() {
-    pinMode   = false;
-    pinBuffer = '';
+    pinMode = false; pinBuffer = '';
     document.getElementById('pin-overlay').classList.remove('show');
     document.getElementById('pin-error').classList.remove('show');
   }
 
   function updatePinDots() {
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 4; i++)
       document.getElementById('pin-dot-' + i).classList.toggle('filled', i < pinBuffer.length);
-    }
   }
 
   function checkPin() {
-    if (pinBuffer === SETTINGS_PIN) {
+    if (pinBuffer === classroomPIN) {
       hidePinPrompt();
       document.getElementById('settings-overlay').classList.add('open');
     } else {
       document.getElementById('pin-error').classList.add('show');
-      pinBuffer = '';
-      updatePinDots();
-      setTimeout(() => hidePinPrompt(), 3000);
+      pinBuffer = ''; updatePinDots();
+      setTimeout(() => hidePinPrompt(), 2000);
     }
   }
 
-  /* ── Orientation layout ── */
+  /* ═══════════════════════════════════════════════════════════
+     ORIENTATION
+  ════════════════════════════════════════════════════════════ */
   function updateLayoutOrientation() {
     const app = document.getElementById('app');
     if (!app) return;
     const isLandscape = window.innerWidth > window.innerHeight;
     const f = settings.forcedOrientation;
-    const useLandscape = f === 'landscape' || (f !== 'portrait' && isLandscape);
-    app.classList.toggle('landscape-layout', useLandscape);
+    app.classList.toggle('landscape-layout', f === 'landscape' || (f !== 'portrait' && isLandscape));
   }
 
   function applyOrientation() {
@@ -931,7 +1369,7 @@
     const f   = settings.forcedOrientation;
     updateLayoutOrientation();
     if (btn) {
-      btn.className = f ? 'active-' + f : '';
+      btn.className   = f ? 'active-' + f : '';
       btn.textContent = f === 'landscape' ? '🔄 Forcing Landscape'
                       : f === 'portrait'  ? '📱 Forcing Portrait'
                       : '⟳ Auto';
@@ -940,299 +1378,26 @@
 
   function toggleOrientation() {
     const f = settings.forcedOrientation;
-    settings.forcedOrientation = f === 'portrait'  ? 'landscape'
-                               : f === 'landscape' ? null
-                               : 'portrait';
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
+    settings.forcedOrientation = f === 'portrait' ? 'landscape' : f === 'landscape' ? null : 'portrait';
     applyOrientation();
   }
 
   window.addEventListener('resize', updateLayoutOrientation);
-  window.addEventListener('orientationchange', function() {
-    setTimeout(updateLayoutOrientation, 150);
-  });
+  window.addEventListener('orientationchange', () => setTimeout(updateLayoutOrientation, 150));
 
+  /* Keyboard support — physical keyboard maps to the on-screen numpad */
   document.addEventListener('keydown', function(e) {
-    // Don't intercept when typing in a real input/textarea (other than the numpad display)
     const tag = document.activeElement && document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-
-    if (e.key >= '0' && e.key <= '9') {
-      e.preventDefault();
-      numpadPress(e.key);
-    } else if (e.key === 'Backspace') {
-      e.preventDefault();
-      numpadDelete();
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      manualLog();
-    }
+    if (e.key >= '0' && e.key <= '9') { e.preventDefault(); numpadPress(e.key); }
+    else if (e.key === 'Backspace')    { e.preventDefault(); numpadDelete(); }
+    else if (e.key === 'Enter')        { e.preventDefault(); manualLog(); }
   });
 
-  /* ═══════════════════════════════
-     GOOGLE SHEETS SYNC
-  ═══════════════════════════════ */
-
-  /* Update the header sync dot */
-  function updateSyncIndicator(state) {
-    const dot   = document.getElementById('sync-dot');
-    const label = document.getElementById('sync-label');
-    if (!settings.sheetUrl) {
-      dot.className = 'sync-dot';
-      label.textContent = 'no sheet';
-      return;
-    }
-    if (state === 'syncing') {
-      dot.className = 'sync-dot syncing';
-      label.textContent = 'syncing…';
-    } else if (state === 'error') {
-      dot.className = 'sync-dot error';
-      label.textContent = 'sync error';
-    } else {
-      dot.className = 'sync-dot ok';
-      label.innerHTML = 'sheet<br>linked';
-    }
-  }
-
-  /* Post a single entry to the sheet — fire and forget, never blocks the UI */
-  async function syncAppendToSheet(entry) {
-    if (!settings.sheetUrl) return;
-    updateSyncIndicator('syncing');
-    try {
-      await fetch(settings.sheetUrl, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'append', entry })
-      });
-      lastWriteTime = Date.now();
-      syncError = false;
-      updateSyncIndicator('ok');
-    } catch(e) {
-      syncError = true;
-      updateSyncIndicator('error');
-    }
-  }
-
-  /* Tell the sheet to clear all rows — called alongside local clearLog() */
-  async function syncClearSheet() {
-    if (!settings.sheetUrl) return;
-    updateSyncIndicator('syncing');
-    try {
-      await fetch(settings.sheetUrl, {
-        method: 'POST',
-        body: JSON.stringify({ action: 'clear' })
-      });
-      syncError = false;
-      updateSyncIndicator('ok');
-    } catch(e) {
-      syncError = true;
-      updateSyncIndicator('error');
-    }
-  }
-
-  /* Fetch the Roster tab and build a Map of id → name */
-  async function syncReadRoster() {
-    if (!settings.sheetUrl) return;
-    try {
-      const response = await fetch(settings.sheetUrl + '?action=readRoster', { method: 'GET' });
-      const json     = await response.json();
-      if (!json.ok || !Array.isArray(json.roster)) return;
-      roster = new Map(json.roster.map(r => [String(r.id).trim(), r.name]));
-    } catch(e) {
-      // Silent fail — roster stays null, entries will be logged as 'Unrecognized'
-    }
-  }
-
-  /* Poll the sheet every 15s — rebuilds state from sheet so all devices stay in sync */
-  let lastWriteTime = 0;
-  async function syncReadFromSheet() {
-    if (!settings.sheetUrl) return;
-    // Skip this poll if we wrote very recently (give the sheet time to update)
-    if (Date.now() - lastWriteTime < 5000) return;
-    try {
-      const response = await fetch(settings.sheetUrl + '?action=read', { method: 'GET' });
-      const json     = await response.json();
-      if (!json.ok || !Array.isArray(json.entries)) return;
-
-      // Detect sheet ordering by comparing first vs last checkoutTimestamp
-      const outEntries = json.entries.filter(e => e.action === 'out' && e.checkoutTimestamp);
-      const newestFirst = outEntries.length >= 2
-        && outEntries[0].checkoutTimestamp > outEntries[outEntries.length - 1].checkoutTimestamp;
-
-      // Normalise to newest-first so first entry per student = their current status
-      const ordered = newestFirst ? json.entries : [...json.entries].reverse();
-
-      const newStatus        = {};
-      const newCheckoutTimes = {};
-      const seenIds          = new Set();
-      ordered.forEach(e => {
-        if (!e.id || e.action === 'denied') return;
-        if (seenIds.has(e.id)) return;   // first seen = most recent
-        seenIds.add(e.id);
-        newStatus[e.id] = e.action;
-        if (e.action === 'out' && e.checkoutTimestamp) {
-          newCheckoutTimes[e.id] = e.checkoutTimestamp;
-        }
-      });
-
-      log           = json.entries;
-      studentStatus = newStatus;
-      checkoutTimes = newCheckoutTimes;
-      saveToStorage();
-
-      syncError = false;
-      updateSyncIndicator('ok');
-      updateTable();
-      updateTheme();
-      updateSavedNote();
-    } catch(e) {
-      // Silent fail — will retry on next interval
-    }
-  }
-
-  /* ── Spreadsheet viewer ── */
-  function openSheetViewer() {
-    document.getElementById('sheet-overlay').classList.add('open');
-    loadSheetData();
-  }
-
-  function closeSheetViewer() {
-    document.getElementById('sheet-overlay').classList.remove('open');
-  }
-
-  function sheetOverlayClick(e) {
-    if (e.target === document.getElementById('sheet-overlay')) closeSheetViewer();
-  }
-
-  async function loadSheetData() {
-    const status = document.getElementById('sheet-status');
-    const tbody  = document.getElementById('sheet-body');
-    status.textContent = 'Loading…';
-    tbody.innerHTML = '<tr><td colspan="7" id="sheet-empty">Loading…</td></tr>';
-
-    if (!settings.sheetUrl) {
-      status.textContent = 'No sheet URL configured.';
-      return;
-    }
-
-    try {
-      const response = await fetch(settings.sheetUrl + '?action=read', { method: 'GET' });
-      const json     = await response.json();
-      if (!json.ok || !Array.isArray(json.entries)) {
-        status.textContent = 'Error loading data.';
-        return;
-      }
-
-      const entries = [...json.entries].reverse(); // newest first
-      status.textContent = entries.length + ' row' + (entries.length !== 1 ? 's' : '') + ' · Last refreshed ' + fmt(new Date());
-
-      if (entries.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" id="sheet-empty">No data in spreadsheet yet.</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = entries.map(e => {
-        const actionBadge = e.action === 'out'
-          ? '<span class="badge badge-out">Out</span>'
-          : '<span class="badge badge-in">In</span>';
-        const incidentCell = e.incident
-          ? `<td class="incident-cell">${e.incident}</td>`
-          : '<td style="color:var(--text-muted)">—</td>';
-        const mins = e.minsGone !== null && e.minsGone !== undefined ? e.minsGone + ' min' : '—';
-        const nameDisplay = e.name || '<span style="color:var(--text-muted)">—</span>';
-        return `<tr>
-          <td style="color:var(--text-muted);white-space:nowrap;">${e.date}</td>
-          <td style="color:var(--text-muted);white-space:nowrap;">${e.time}</td>
-          <td><strong>${e.id}</strong></td>
-          <td>${nameDisplay}</td>
-          <td>${actionBadge}</td>
-          <td class="mins-cell">${mins}</td>
-          ${incidentCell}
-        </tr>`;
-      }).join('');
-    } catch(err) {
-      status.textContent = 'Could not reach the sheet.';
-      tbody.innerHTML = '<tr><td colspan="7" id="sheet-empty">Connection failed.</td></tr>';
-    }
-  }
-
-  /* Reconnect loop — retries every 30s when the sheet is in an error state */
-  async function reconnectLoop() {
-    if (!syncError || !settings.sheetUrl) return;
-    try {
-      const response = await fetch(settings.sheetUrl + '?action=read', { method: 'GET' });
-      const json = await response.json();
-      if (json.ok) { syncError = false; updateSyncIndicator('ok'); }
-    } catch(e) { /* still down, will retry */ }
-  }
-
-  /* Test connection button in settings */
-  async function testConnection() {
-    const url = document.getElementById('setting-sheet-url').value.trim();
-    const res = document.getElementById('connection-result');
-    res.style.display = 'none';
-
-    if (!url) {
-      res.className = 'error';
-      res.textContent = 'Please enter a Web App URL first.';
-      res.style.display = 'block';
-      return;
-    }
-
-    res.className = '';
-    res.textContent = 'Testing…';
-    res.style.display = 'block';
-
-    try {
-      const response = await fetch(url + '?action=read', { method: 'GET' });
-      const json     = await response.json();
-      if (json.ok) {
-        res.className   = 'ok';
-        res.textContent = 'Connected! Sheet is accessible and ready.';
-        settings.sheetUrl = url;
-        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(e) {}
-        updateSyncIndicator();
-      } else {
-        res.className   = 'error';
-        res.textContent = 'Sheet responded but returned an error: ' + (json.error || 'unknown');
-      }
-    } catch(e) {
-      res.className   = 'error';
-      res.textContent = 'Could not reach the sheet. Check the URL and make sure the script is deployed as "Anyone" access.';
-    }
-  }
-
-  /* ═══════════════════════════════
-     LOCAL STORAGE
-  ═══════════════════════════════ */
-  function loadFromStorage() {
-    try {
-      const savedLog      = localStorage.getItem(STORAGE_KEY);
-      const savedStatus   = localStorage.getItem(STATUS_KEY);
-      const savedCheckout = localStorage.getItem(CHECKOUT_KEY);
-      if (savedLog)      log           = JSON.parse(savedLog);
-      if (savedStatus)   studentStatus = JSON.parse(savedStatus);
-      if (savedCheckout) checkoutTimes = JSON.parse(savedCheckout);
-    } catch(e) { log = []; studentStatus = {}; checkoutTimes = {}; }
-    updateTable(); updateTheme(); updateSavedNote();
-  }
-
-  function saveToStorage() {
-    try {
-      localStorage.setItem(STORAGE_KEY,  JSON.stringify(log));
-      localStorage.setItem(STATUS_KEY,   JSON.stringify(studentStatus));
-      localStorage.setItem(CHECKOUT_KEY, JSON.stringify(checkoutTimes));
-    } catch(e) {}
-    updateSavedNote();
-  }
-
-  function updateSavedNote() {
-    document.getElementById('saved-note').textContent = '';
-  }
-
-  /* ═══════════════════════════════
+  /* ═══════════════════════════════════════════════════════════
      UI FEEDBACK
-  ═══════════════════════════════ */
+  ════════════════════════════════════════════════════════════ */
   function showToast(msg, type) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -1273,91 +1438,11 @@
 
   function dismissWelcome() {
     const ov = document.getElementById('welcome-overlay');
-    ov.className = '';
-    clearTimeout(ov._timer);
-  }
-
-  /* ═══════════════════════════════
-     TIME HELPERS
-  ═══════════════════════════════ */
-  function fmt(d) {
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
-  function minsElapsed(fromMs) {
-    return Math.floor((Date.now() - fromMs) / 60000);
-  }
-
-  /* ═══════════════════════════════
-     CAMERA
-  ═══════════════════════════════ */
-  function stopCamera() {
-    if (codeReader) { codeReader.reset(); codeReader = null; }
-    const video = document.getElementById('video');
-    if (video.srcObject) {
-      video.srcObject.getTracks().forEach(t => t.stop());
-      video.srcObject = null;
-    }
-    cameraOn = false;
-    document.getElementById('scan-line').classList.remove('active');
-    const btn = document.getElementById('start-btn');
-    btn.textContent  = 'Start scanning';
-    btn.style.cssText = '';
-    document.getElementById('overlay-msg').textContent = 'Camera off — tap Start Scanning';
-  }
-
-  async function toggleCamera() {
-    dismissWelcome();
-    const btn = document.getElementById('start-btn');
-    const msg = document.getElementById('overlay-msg');
-
-    if (!cameraOn) {
-      try {
-        codeReader = new ZXing.BrowserMultiFormatReader();
-        await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-          .then(s => s.getTracks().forEach(t => t.stop()))
-          .catch(() => {});
-        const allDevices   = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = allDevices.filter(d => d.kind === 'videoinput');
-        const backCam      = videoDevices.find(d => /back|rear|environment/i.test(d.label))
-                             || videoDevices[videoDevices.length - 1];
-        const deviceId     = backCam ? backCam.deviceId : undefined;
-        await codeReader.decodeFromVideoDevice(deviceId, 'video', (result) => {
-          if (result) recordScan(result.getText(), true);
-        });
-        cameraOn = true;
-        document.getElementById('scan-line').classList.add('active');
-        btn.textContent   = 'Stop scanning';
-        btn.style.cssText = 'background:var(--danger-bg);color:var(--danger-text);border-color:var(--danger-border);font-weight:600;';
-        msg.textContent   = 'Point camera at a student ID barcode';
-      } catch(e) {
-        msg.textContent = 'Camera error: ' + e.message;
-      }
-    } else {
-      stopCamera();
-    }
-  }
-
-  /* ═══════════════════════════════
-     CORE SCAN LOGIC
-  ═══════════════════════════════ */
-  function countCheckoutsToday(id) {
-    const today = new Date().toLocaleDateString();
-    return log.filter(e => e.id === id && e.action === 'out' && e.date === today).length;
-  }
-
-  function countCheckoutsWeek(id) {
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    return log.filter(e => {
-      if (e.id !== id || e.action !== 'out') return false;
-      if (e.checkoutTimestamp) return e.checkoutTimestamp >= cutoff;
-      const d = new Date(e.date);
-      return !isNaN(d.getTime()) && d.getTime() >= cutoff;
-    }).length;
+    ov.className = ''; clearTimeout(ov._timer);
   }
 
   function showLimitDeniedMessage(type) {
-    const sub = document.getElementById('limit-denied-sub');
-    sub.textContent = type === 'daily'
+    document.getElementById('limit-denied-sub').textContent = type === 'daily'
       ? 'This student has reached their daily leave limit'
       : 'This student has reached their 7-day leave limit';
     const el = document.getElementById('limit-denied-overlay');
@@ -1373,15 +1458,119 @@
     el._timer = setTimeout(() => el.classList.remove('show'), 3000);
   }
 
-  function recordScan(id, fromCamera) {
+  function showConflictWarning() {
+    const el = document.getElementById('conflict-overlay');
+    el.classList.add('show');
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => el.classList.remove('show'), 10000);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     TIME HELPERS
+  ════════════════════════════════════════════════════════════ */
+  function fmt(d) {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  function minsElapsed(fromMs) { return Math.floor((Date.now() - fromMs) / 60000); }
+
+  /* ═══════════════════════════════════════════════════════════
+     CAMERA
+  ════════════════════════════════════════════════════════════ */
+  function stopCamera() {
+    if (codeReader) { codeReader.reset(); codeReader = null; }
+    const video = document.getElementById('video');
+    if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
+    cameraOn = false;
+    document.getElementById('scan-line').classList.remove('active');
+    const btn = document.getElementById('start-btn');
+    btn.textContent  = 'Start scanning';
+    btn.style.cssText = '';
+    document.getElementById('overlay-msg').textContent = 'Camera off — tap Start Scanning';
+  }
+
+  async function toggleCamera() {
+    dismissWelcome();
+    const btn = document.getElementById('start-btn');
+    const msg = document.getElementById('overlay-msg');
+    if (!cameraOn) {
+      try {
+        codeReader = new ZXing.BrowserMultiFormatReader();
+        await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+          .then(s => s.getTracks().forEach(t => t.stop())).catch(() => {});
+        const allDevices   = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = allDevices.filter(d => d.kind === 'videoinput');
+        const backCam      = videoDevices.find(d => /back|rear|environment/i.test(d.label))
+                             || videoDevices[videoDevices.length - 1];
+        await codeReader.decodeFromVideoDevice(backCam ? backCam.deviceId : undefined, 'video', result => {
+          if (result) recordScan(result.getText(), true);
+        });
+        cameraOn = true;
+        document.getElementById('scan-line').classList.add('active');
+        btn.textContent   = 'Stop scanning';
+        btn.style.cssText = 'background:var(--danger-bg);color:var(--danger-text);border-color:var(--danger-border);font-weight:600;';
+        msg.textContent   = 'Point camera at a student ID barcode';
+      } catch(e) {
+        msg.textContent = 'Camera error: ' + e.message;
+      }
+    } else {
+      stopCamera();
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     CORE SCAN LOGIC
+  ════════════════════════════════════════════════════════════ */
+  async function countCheckoutsInPeriod(studentId, period) {
+    const cutoff = new Date();
+    if (period === 'today') cutoff.setHours(0, 0, 0, 0);
+    else cutoff.setTime(cutoff.getTime() - 7 * 24 * 60 * 60 * 1000);
+    try {
+      const snap = await db.collection('classrooms').doc(currentClassroomId)
+        .collection('log')
+        .where('id', '==', studentId)
+        .where('action', '==', 'out')
+        .where('timestamp', '>=', firebase.firestore.Timestamp.fromDate(cutoff))
+        .get();
+      return snap.size;
+    } catch (e) {
+      /* Fallback to in-memory if composite index not yet created */
+      if (period === 'today') {
+        const today = new Date().toLocaleDateString();
+        return log.filter(e => e.id === studentId && e.action === 'out' && e.date === today).length;
+      }
+      const cutoffMs = cutoff.getTime();
+      return log.filter(e => {
+        if (e.id !== studentId || e.action !== 'out') return false;
+        if (e.checkoutTimestamp) return e.checkoutTimestamp >= cutoffMs;
+        const d = new Date(e.date); return !isNaN(d) && d.getTime() >= cutoffMs;
+      }).length;
+    }
+  }
+
+  function writeToFirestore(entry) {
+    if (!currentClassroomId) return;
+    const cid = currentClassroomId;
+    const ts  = firebase.firestore.FieldValue.serverTimestamp();
+    db.collection('classrooms').doc(cid).collection('log').add({ ...entry, timestamp: ts })
+      .catch(() => updateSyncIndicator('error'));
+    if (entry.action === 'out' || entry.action === 'in') {
+      db.collection('classrooms').doc(cid).collection('status').doc(entry.id).set({
+        status:            entry.action,
+        checkoutTimestamp: entry.action === 'out' ? entry.checkoutTimestamp : null,
+        updatedAt:         ts
+      }).catch(() => {});
+    }
+  }
+
+  async function recordScan(id, fromCamera) {
     id = String(id).trim();
-    if (!id) return;
+    if (!id || !currentClassroomId) return;
+
     const now = Date.now();
     if (id === lastScanned && now - lastScanTime < 2500) return;
-    lastScanned  = id;
-    lastScanTime = now;
+    lastScanned = id; lastScanTime = now;
 
-    // Validate against roster if it has been loaded
+    /* Roster validation */
     let name;
     if (roster !== null) {
       name = roster.get(id);
@@ -1391,71 +1580,56 @@
         return;
       }
     } else {
-      name = 'Unrecognized';
+      name = '';
     }
 
     const action = studentStatus[id] !== 'out' ? 'out' : 'in';
 
-    // Check leave limits before allowing checkout
+    /* Leave-limit check */
     if (action === 'out') {
-      const dailyLimit  = settings.maxDailyLeaves;
-      const weeklyLimit = settings.maxWeeklyLeaves;
-      let deniedReason  = null;
-      if (dailyLimit > 0 && countCheckoutsToday(id) >= dailyLimit)   deniedReason = 'daily';
-      if (!deniedReason && weeklyLimit > 0 && countCheckoutsWeek(id) >= weeklyLimit) deniedReason = 'weekly';
+      const dl = settings.maxDailyLeaves;
+      const wl = settings.maxWeeklyLeaves;
+      let deniedReason = null;
+      if (dl > 0 && await countCheckoutsInPeriod(id, 'today') >= dl) deniedReason = 'daily';
+      if (!deniedReason && wl > 0 && await countCheckoutsInPeriod(id, 'week') >= wl) deniedReason = 'weekly';
       if (deniedReason) {
-        const deniedEntry = {
+        writeToFirestore({
           date: new Date().toLocaleDateString(), time: fmt(new Date()),
           id, name, action: 'denied', minsGone: null, checkoutTimestamp: null,
           incident: deniedReason === 'daily' ? 'Daily leave limit reached' : '7-day leave limit reached'
-        };
-        log.unshift(deniedEntry);
-        saveToStorage();
-        syncAppendToSheet(deniedEntry);
+        });
         showLimitDeniedMessage(deniedReason);
         if (fromCamera) setTimeout(() => stopCamera(), 300);
         return;
       }
     }
 
-    // Check for conflict before updating status
+    /* Conflict check */
     let incident = '';
-    if (action === 'out') {
-      const alreadyOut = Object.values(studentStatus).some(v => v === 'out');
-      if (alreadyOut) {
-        incident = 'Someone is already checked out';
-        showConflictWarning();
-      }
+    if (action === 'out' && Object.values(studentStatus).some(v => v === 'out')) {
+      incident = 'Someone is already checked out';
+      showConflictWarning();
     }
 
-    studentStatus[id] = action;
-
+    /* Compute minsGone */
     let minsGone = null;
-    if (action === 'out') {
-      checkoutTimes[id] = now;
-    } else {
-      if (checkoutTimes[id]) {
-        minsGone = minsElapsed(checkoutTimes[id]);
-        delete checkoutTimes[id];
-      }
-    }
+    if (action === 'in' && checkoutTimes[id]) minsGone = minsElapsed(checkoutTimes[id]);
+
+    /* Optimistic local update for immediate UI feedback */
+    if (action === 'out') { studentStatus[id] = 'out'; checkoutTimes[id] = now; }
+    else                  { studentStatus[id] = 'in';  delete checkoutTimes[id]; }
+    updateTable();
+    updateTheme();
 
     const entry = {
-      date:              new Date().toLocaleDateString(),
-      time:              fmt(new Date()),
+      date: new Date().toLocaleDateString(), time: fmt(new Date()),
       id, name, action,
-      minsGone:          minsGone !== null ? minsGone : null,
+      minsGone:          minsGone,
       checkoutTimestamp: action === 'out' ? now : null,
       incident
     };
 
-    log.unshift(entry);
-    saveToStorage();
-    updateTable();
-    updateTheme();
-
-    // Sync to Google Sheets (non-blocking)
-    syncAppendToSheet(entry);
+    writeToFirestore(entry);
 
     if (action === 'in' && minsGone !== null) {
       if (fromCamera) flashScreen();
@@ -1464,17 +1638,13 @@
     } else {
       if (fromCamera) { flashScreen(); setTimeout(() => stopCamera(), 300); }
       showCheckoutMessage();
-      showToast(id + '  🚪 Checked OUT', 'out');
+      showToast((name || id) + ' checked OUT', 'out');
     }
   }
 
-  function showConflictWarning() {
-    const el = document.getElementById('conflict-overlay');
-    el.classList.add('show');
-    clearTimeout(el._timer);
-    el._timer = setTimeout(() => el.classList.remove('show'), 10000);
-  }
-
+  /* ═══════════════════════════════════════════════════════════
+     THEME & TABLE
+  ════════════════════════════════════════════════════════════ */
   function updateTheme() {
     const maxMins = settings.maxMinutes;
     const anyActiveOut = Object.entries(studentStatus).some(([id, v]) => {
@@ -1485,60 +1655,74 @@
     document.body.classList.toggle('state-out', anyActiveOut);
   }
 
-  /* ═══════════════════════════════
-     UI UPDATES
-  ═══════════════════════════════ */
   function updateTable() {
     const tbody   = document.getElementById('log-body');
     const maxMins = settings.maxMinutes;
-
-    // Build list of students currently checked out (most recent checkout entry per student)
-    const seen = new Set();
+    const seen    = new Set();
     const filtered = log.filter(e => {
       if (e.action === 'out' && studentStatus[e.id] === 'out' && !seen.has(e.id)) {
-        seen.add(e.id);
-        return true;
+        seen.add(e.id); return true;
       }
       return false;
     });
-
     if (filtered.length === 0) {
       tbody.innerHTML = '<tr><td colspan="4" id="empty-msg">No students currently out</td></tr>';
       return;
     }
     tbody.innerHTML = filtered.map(e => {
-      const minsOut = checkoutTimes[e.id] ? minsElapsed(checkoutTimes[e.id]) : null;
-      const over    = minsOut !== null && minsOut >= maxMins;
+      const minsOut  = checkoutTimes[e.id] ? minsElapsed(checkoutTimes[e.id]) : null;
+      const over     = minsOut !== null && minsOut >= maxMins;
       const minsCell = minsOut !== null
         ? `<td class="mins-cell${over ? ' mins-over' : ''}">${minsOut} min</td>`
         : '<td class="mins-cell">—</td>';
-      const displayName = e.name && e.name !== 'Unrecognized' ? e.name : e.id;
       return `<tr>
         <td style="color:var(--text-muted);font-size:12px;">${e.time}</td>
-        <td><strong>${displayName}</strong></td>
+        <td><strong>${e.name || e.id}</strong></td>
         <td><span class="badge badge-out">Checked out</span></td>
         ${minsCell}
       </tr>`;
     }).join('');
   }
 
-  /* ═══════════════════════════════
+  /* Keep elapsed times ticking */
+  setInterval(() => {
+    if (Object.values(studentStatus).some(v => v === 'out')) { updateTable(); updateTheme(); }
+  }, 10000);
+
+  /* ═══════════════════════════════════════════════════════════
      ACTIONS
-  ═══════════════════════════════ */
-  function clearLog() {
-    if (!confirm('Clear the entire log? This will also clear the Google Sheet if connected.')) return;
-    log = []; studentStatus = {}; checkoutTimes = {}; lastScanned = '';
-    saveToStorage(); updateTable(); updateTheme();
-    syncClearSheet();
-    closeSettings();
-    showToast('Log cleared', 'neutral');
+  ════════════════════════════════════════════════════════════ */
+  async function clearLog() {
+    if (!confirm('Clear the entire log for this classroom? This cannot be undone.')) return;
+    try {
+      /* Delete log in pages (Firestore batch limit = 500) */
+      let snap = await db.collection('classrooms').doc(currentClassroomId).collection('log').limit(400).get();
+      while (!snap.empty) {
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        snap = await db.collection('classrooms').doc(currentClassroomId).collection('log').limit(400).get();
+      }
+      /* Delete status */
+      const statusSnap = await db.collection('classrooms').doc(currentClassroomId).collection('status').get();
+      if (!statusSnap.empty) {
+        const batch = db.batch();
+        statusSnap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }
+      log = []; studentStatus = {}; checkoutTimes = {}; lastScanned = '';
+      updateTable(); updateTheme();
+      closeSettings();
+      showToast('Log cleared', 'neutral');
+    } catch (e) {
+      showToast('Error clearing log', 'neutral');
+    }
   }
 
   function numpadPress(digit) {
     if (pinMode) {
       if (pinBuffer.length >= 4) return;
-      pinBuffer += digit;
-      updatePinDots();
+      pinBuffer += digit; updatePinDots();
       if (pinBuffer.length === 4) checkPin();
       return;
     }
@@ -1546,11 +1730,7 @@
   }
 
   function numpadDelete() {
-    if (pinMode) {
-      pinBuffer = pinBuffer.slice(0, -1);
-      updatePinDots();
-      return;
-    }
+    if (pinMode) { pinBuffer = pinBuffer.slice(0, -1); updatePinDots(); return; }
     const input = document.getElementById('manual-input');
     input.value = input.value.slice(0, -1);
   }
@@ -1562,67 +1742,121 @@
     input.value = '';
   }
 
-  /* ═══════════════════════════════
-     SHEET VIEWER
-  ═══════════════════════════════ */
-  async function openSheetViewer() {
-    const overlay = document.getElementById('sheet-viewer-overlay');
-    const body    = document.getElementById('sheet-viewer-body');
+  /* ═══════════════════════════════════════════════════════════
+     ACTIVITY LOG VIEWER
+  ════════════════════════════════════════════════════════════ */
+  function openLogViewer() {
+    closeSettings();
+    const overlay = document.getElementById('log-viewer-overlay');
+    const body    = document.getElementById('log-viewer-body');
     overlay.classList.add('open');
-    body.innerHTML = '<div class="sv-loading">Loading…</div>';
 
-    if (!settings.sheetUrl) {
-      body.innerHTML = '<div class="sv-error">No sheet URL configured. Add one in Settings first.</div>';
+    if (log.length === 0) {
+      body.innerHTML = '<div class="sv-empty">No records in this classroom yet.</div>';
       return;
     }
+    const rows = log.map(e => `<tr>
+      <td style="color:var(--text-muted)">${e.date || '—'}</td>
+      <td style="color:var(--text-muted)">${e.time || '—'}</td>
+      <td><strong>${e.id || '—'}</strong></td>
+      <td>${e.name || '—'}</td>
+      <td><span class="badge ${e.action === 'out' ? 'badge-out' : 'badge-in'}">
+        ${e.action === 'out' ? 'Out' : e.action === 'in' ? 'In' : 'Denied'}
+      </span></td>
+      <td class="mins-cell">${e.minsGone != null ? e.minsGone + ' min' : '—'}</td>
+      <td style="color:var(--text-muted);font-size:11px;">${e.incident || ''}</td>
+    </tr>`).join('');
+    body.innerHTML = `<table id="sv-table">
+      <thead><tr><th>Date</th><th>Time</th><th>Student ID</th><th>Name</th><th>Action</th><th>Mins</th><th>Incident</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  }
+
+  function closeLogViewer() { document.getElementById('log-viewer-overlay').classList.remove('open'); }
+  function logViewerOverlayClick(e) {
+    if (e.target === document.getElementById('log-viewer-overlay')) closeLogViewer();
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     ROSTER MANAGER
+  ════════════════════════════════════════════════════════════ */
+  async function openRosterManager() {
+    closeSettings();
+    const overlay  = document.getElementById('roster-overlay');
+    const textarea = document.getElementById('roster-textarea');
+    textarea.value = '';
+    document.getElementById('roster-count').textContent = '';
+    overlay.classList.add('open');
 
     try {
-      const response = await fetch(settings.sheetUrl + '?action=read', { method: 'GET' });
-      const json     = await response.json();
-      if (!json.ok || !Array.isArray(json.entries)) {
-        body.innerHTML = '<div class="sv-error">Sheet returned an error: ' + (json.error || 'unknown') + '</div>';
-        return;
+      const snap = await db.collection('classrooms').doc(currentClassroomId).collection('roster').get();
+      if (!snap.empty) {
+        const lines = [];
+        snap.forEach(doc => {
+          const d = doc.data();
+          lines.push(d.name ? d.id + ',' + d.name : d.id);
+        });
+        textarea.value = lines.join('\n');
+        document.getElementById('roster-count').textContent =
+          lines.length + ' student' + (lines.length !== 1 ? 's' : '') + ' in roster';
       }
-      if (json.entries.length === 0) {
-        body.innerHTML = '<div class="sv-empty">No records in the sheet yet.</div>';
-        return;
+    } catch (e) { /* leave empty */ }
+  }
+
+  function closeRosterManager() { document.getElementById('roster-overlay').classList.remove('open'); }
+  function rosterOverlayClick(e) {
+    if (e.target === document.getElementById('roster-overlay')) closeRosterManager();
+  }
+
+  async function saveRoster() {
+    const text    = document.getElementById('roster-textarea').value;
+    const lines   = text.split('\n').map(l => l.trim()).filter(l => l);
+    const entries = lines.map(line => {
+      const idx = line.indexOf(',');
+      return idx === -1
+        ? { id: line.trim(), name: '' }
+        : { id: line.slice(0, idx).trim(), name: line.slice(idx + 1).trim() };
+    }).filter(e => e.id);
+
+    try {
+      const rosterRef = db.collection('classrooms').doc(currentClassroomId).collection('roster');
+      const existing  = await rosterRef.get();
+      if (!existing.empty) {
+        const batch = db.batch();
+        existing.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
       }
-      const rows = json.entries.map(e => `<tr>
-        <td style="color:var(--text-muted)">${e.date || '—'}</td>
-        <td style="color:var(--text-muted)">${e.time || '—'}</td>
-        <td><strong>${e.id || '—'}</strong></td>
-        <td>${e.name || '—'}</td>
-        <td><span class="badge ${e.action === 'out' ? 'badge-out' : 'badge-in'}">${e.action === 'out' ? 'Out' : 'In'}</span></td>
-        <td class="mins-cell">${e.minsGone !== null && e.minsGone !== undefined ? e.minsGone + ' min' : '—'}</td>
-        <td style="color:var(--text-muted);font-size:11px;">${e.incident || ''}</td>
-      </tr>`).join('');
-      body.innerHTML = `<table id="sv-table">
-        <thead><tr>
-          <th>Date</th><th>Time</th><th>Student ID</th><th>Name</th><th>Action</th><th>Mins</th><th>Incident</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
-    } catch(e) {
-      body.innerHTML = '<div class="sv-error">Could not reach the sheet. Check your connection.</div>';
+      if (entries.length > 0) {
+        const batch = db.batch();
+        entries.forEach(e => batch.set(rosterRef.doc(e.id), { id: e.id, name: e.name }));
+        await batch.commit();
+        roster = new Map(entries.map(e => [e.id, e.name]));
+      } else {
+        roster = null;
+      }
+      closeRosterManager();
+      showToast('Roster saved: ' + entries.length + ' student' + (entries.length !== 1 ? 's' : ''), 'neutral');
+    } catch (e) {
+      showToast('Error saving roster', 'neutral');
     }
   }
 
-  function closeSheetViewer() {
-    document.getElementById('sheet-viewer-overlay').classList.remove('open');
+  async function clearRoster() {
+    if (!confirm('Remove the roster? The app will accept any student ID after this.')) return;
+    try {
+      const snap = await db.collection('classrooms').doc(currentClassroomId).collection('roster').get();
+      if (!snap.empty) {
+        const batch = db.batch();
+        snap.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }
+      roster = null;
+      closeRosterManager();
+      showToast('Roster cleared', 'neutral');
+    } catch (e) {
+      showToast('Error clearing roster', 'neutral');
+    }
   }
-
-  function sheetViewerOverlayClick(e) {
-    if (e.target === document.getElementById('sheet-viewer-overlay')) closeSheetViewer();
-  }
-
-  /* ── Init ── */
-  loadSettings();
-  loadFromStorage();
-  setInterval(() => { if (Object.values(studentStatus).some(v => v === 'out')) updateTable(); }, 10000);
-  setInterval(reconnectLoop, 30000);
-  setInterval(syncReadFromSheet, 5000);
-  syncReadFromSheet(); // initial load from sheet on startup
-  syncReadRoster();    // load student roster on startup
 </script>
 </body>
 </html>
