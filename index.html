@@ -1009,6 +1009,7 @@
   let pinBuffer          = '';
   let unsubStatus        = null;
   let unsubLog           = null;
+  let regOpen            = true;
 
   /* ═══════════════════════════════════════════════════════════
      VIEW MANAGEMENT
@@ -1035,8 +1036,8 @@
   function getSession()    { try { return JSON.parse(localStorage.getItem('pm_session') || 'null'); } catch { return null; } }
   function setSession(emp) { localStorage.setItem('pm_session', JSON.stringify(emp)); }
   function clearSession()  { localStorage.removeItem('pm_session'); }
-  function isRegOpen()     { return localStorage.getItem('pm_reg_open') !== '0'; }
-  function toggleReg()     { localStorage.setItem('pm_reg_open', isRegOpen() ? '0' : '1'); }
+  function isRegOpen()     { return regOpen; }
+  function toggleReg()     { db.collection('settings').doc('global').set({ registrationOpen: !regOpen }, { merge: true }); }
 
   function startLogin() {
     authStep = 'login-id'; authIdBuf = ''; authPinBuf = '';
@@ -1261,6 +1262,13 @@
     document.getElementById('new-classroom-name').addEventListener('keydown', e => {
       if (e.key === 'Enter') doCreateClassroom();
     });
+  });
+
+  /* ── Sync registration flag from Firestore across all browsers ── */
+  db.collection('settings').doc('global').onSnapshot(snap => {
+    const data = snap.data();
+    regOpen = data ? data.registrationOpen !== false : true;
+    if (authStep === 'login-id') renderAuthStep();
   });
 
   /* ── Session init — runs once on page load ── */
