@@ -9,7 +9,6 @@
   <title>Restroom Pass Manager</title>
 
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
 
@@ -118,16 +117,12 @@
 
     /* ── Auth View ── */
     #auth-view {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
-      background: var(--page-bg);
+      min-height: 100vh; display: flex; align-items: center;
+      justify-content: center; padding: 1.5rem; background: var(--page-bg);
     }
-    .auth-container { width: 100%; max-width: 420px; }
-    .auth-logo { text-align: center; margin-bottom: 2rem; }
-    .auth-logo-icon { font-size: 48px; margin-bottom: 0.5rem; }
+    .auth-container { width: 100%; max-width: 400px; }
+    .auth-logo { text-align: center; margin-bottom: 1.25rem; }
+    .auth-logo-icon { font-size: 44px; margin-bottom: 0.4rem; }
     .auth-title {
       font-size: 24px; font-weight: 700;
       background: var(--grad-main); -webkit-background-clip: text;
@@ -136,10 +131,28 @@
     .auth-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
     .auth-card {
       background: var(--card-bg); border: 1.5px solid var(--border);
-      border-radius: var(--radius-xl); padding: 1.75rem 1.5rem;
+      border-radius: var(--radius-xl); padding: 1.25rem 1.25rem 1rem;
       box-shadow: var(--shadow-card);
     }
-    .auth-card-title { font-size: 18px; font-weight: 700; color: var(--accent-dark); margin-bottom: 1.25rem; }
+    /* header row: back btn + step title */
+    .auth-top-row { display: flex; align-items: center; gap: 8px; margin-bottom: 0.9rem; }
+    .auth-back-btn {
+      background: none; border: none; font-size: 22px; color: var(--accent);
+      cursor: pointer; padding: 0 6px 0 0; min-width: unset; flex: none; line-height: 1;
+    }
+    .auth-back-btn:active { opacity: 0.6; }
+    .auth-step-title { font-size: 18px; font-weight: 700; color: var(--accent-dark); flex: 1; margin: 0; }
+    /* large digit display for Employee ID */
+    .auth-id-display {
+      font-size: 30px; font-weight: 700; letter-spacing: 0.1em; text-align: center;
+      padding: 10px 14px; margin-bottom: 0.75rem;
+      background: var(--card-bg2); border: 1.5px solid var(--border-med);
+      border-radius: var(--radius-md); color: var(--text); min-height: 54px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    /* PIN dot row (reused from scanner) */
+    .auth-pin-dots { display: flex; gap: 14px; justify-content: center; padding: 14px 0 10px; }
+    /* name input (signup only) */
     .auth-field { margin-bottom: 1rem; }
     .auth-label { display: block; font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
     .auth-input {
@@ -151,7 +164,7 @@
     .auth-input:focus { border-color: var(--accent); }
     .auth-error {
       font-size: 13px; color: var(--danger-text); background: var(--danger-bg);
-      border-radius: var(--radius-md); padding: 8px 12px; margin-bottom: 0.75rem; display: none;
+      border-radius: var(--radius-md); padding: 8px 12px; margin-bottom: 0.6rem; display: none;
     }
     .auth-error:not(:empty) { display: block; }
     .auth-btn-primary {
@@ -160,8 +173,10 @@
       cursor: pointer; box-shadow: var(--shadow-btn); min-width: unset; flex: none;
     }
     .auth-btn-primary:active { transform: scale(0.97); }
-    .auth-switch { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 1rem; }
+    .auth-switch { font-size: 13px; color: var(--text-muted); text-align: center; margin-top: 0.9rem; min-height: 1.4em; }
     .auth-switch span { color: var(--accent-dark); font-weight: 600; cursor: pointer; text-decoration: underline; }
+    /* auth-specific numpad tweaks (matches scanner numpad exactly) */
+    #auth-numpad { margin-bottom: 0; margin-top: 0.5rem; }
 
     /* ── Classroom View ── */
     #classroom-view { min-height: 100vh; background: var(--page-bg); padding-bottom: 3rem; }
@@ -602,38 +617,54 @@
       <p class="auth-subtitle">Restroom Pass Tracker for Schools</p>
     </div>
 
-    <div class="auth-card" id="login-form">
-      <h2 class="auth-card-title">Welcome back</h2>
-      <div class="auth-field">
-        <label class="auth-label">Email</label>
-        <input type="email" id="login-email" class="auth-input" placeholder="you@school.edu" autocomplete="email" />
+    <div class="auth-card">
+      <!-- Step header -->
+      <div class="auth-top-row">
+        <button class="auth-back-btn" id="auth-back-btn" onclick="authBack()" style="display:none">←</button>
+        <h2 class="auth-step-title" id="auth-step-title">Employee ID</h2>
       </div>
-      <div class="auth-field">
-        <label class="auth-label">Password</label>
-        <input type="password" id="login-password" class="auth-input" placeholder="••••••••" autocomplete="current-password" />
-      </div>
-      <div class="auth-error" id="login-error"></div>
-      <button class="auth-btn-primary" onclick="doLogin()">Sign In</button>
-      <p class="auth-switch">Don't have an account? <span onclick="showSignupForm()">Create account</span></p>
-    </div>
 
-    <div class="auth-card" id="signup-form" style="display:none">
-      <h2 class="auth-card-title">Create account</h2>
-      <div class="auth-field">
-        <label class="auth-label">Your name</label>
-        <input type="text" id="signup-name" class="auth-input" placeholder="Ms. Smith" autocomplete="name" />
+      <!-- Name field — signup-name step only -->
+      <div id="auth-name-section" style="display:none">
+        <div class="auth-field">
+          <label class="auth-label">Your name</label>
+          <input type="text" id="signup-name" class="auth-input" placeholder="Ms. Smith" autocomplete="name" />
+        </div>
+        <button class="auth-btn-primary" onclick="authNext()">Continue</button>
       </div>
-      <div class="auth-field">
-        <label class="auth-label">Email</label>
-        <input type="email" id="signup-email" class="auth-input" placeholder="you@school.edu" autocomplete="email" />
+
+      <!-- ID digit display — login-id / signup-id steps -->
+      <div class="auth-id-display" id="auth-id-display">—</div>
+
+      <!-- PIN dots — login-pin / signup-pin / signup-confirm steps -->
+      <div class="auth-pin-dots" id="auth-pin-dots" style="display:none">
+        <div class="pin-dot" id="auth-dot-0"></div>
+        <div class="pin-dot" id="auth-dot-1"></div>
+        <div class="pin-dot" id="auth-dot-2"></div>
+        <div class="pin-dot" id="auth-dot-3"></div>
       </div>
-      <div class="auth-field">
-        <label class="auth-label">Password</label>
-        <input type="password" id="signup-password" class="auth-input" placeholder="At least 6 characters" autocomplete="new-password" />
+
+      <div class="auth-error" id="auth-error"></div>
+
+      <!-- Numpad — identical layout to scanner keypad -->
+      <div class="numpad" id="auth-numpad">
+        <button onclick="authNumpad('1')">1</button>
+        <button onclick="authNumpad('2')">2</button>
+        <button onclick="authNumpad('3')">3</button>
+        <button onclick="authNumpad('4')">4</button>
+        <button onclick="authNumpad('5')">5</button>
+        <button onclick="authNumpad('6')">6</button>
+        <button onclick="authNumpad('7')">7</button>
+        <button onclick="authNumpad('8')">8</button>
+        <button onclick="authNumpad('9')">9</button>
+        <button class="numpad-del" onclick="authNumpadDel()">⌫</button>
+        <button onclick="authNumpad('0')">0</button>
+        <button class="numpad-log" id="auth-action-btn" onclick="authNext()">Next</button>
       </div>
-      <div class="auth-error" id="signup-error"></div>
-      <button class="auth-btn-primary" onclick="doSignup()">Create Account</button>
-      <p class="auth-switch">Already have an account? <span onclick="showLoginForm()">Sign in</span></p>
+
+      <p class="auth-switch" id="auth-mode-switch">
+        Don't have an account? <span onclick="startSignup()">Create account</span>
+      </p>
     </div>
   </div>
 </div>
@@ -888,10 +919,9 @@
      FIREBASE CONFIG
      1. Go to console.firebase.google.com
      2. Create project → Add Web App → copy config below
-     3. Enable Authentication → Email/Password
-     4. Enable Firestore → Create database
-     5. Set Firestore security rules (see firestore.rules file)
-     6. Add composite index in Firestore console:
+     3. Enable Firestore → Create database
+     4. Deploy firestore.rules from this folder
+     5. Add composite index in Firestore console:
         Collection group: log
         Fields: id (ASC), action (ASC), timestamp (ASC)
   ════════════════════════════════════════════════════════════ */
@@ -913,7 +943,7 @@
           <h1 class="auth-title">Setup Required</h1>
         </div>
         <div class="auth-card">
-          <h2 class="auth-card-title">Firebase not configured</h2>
+          <h2 class="auth-step-title" style="margin-bottom:1rem">Firebase not configured</h2>
           <p style="color:var(--text-muted);font-size:14px;line-height:1.7;margin-bottom:1rem;">
             Open this HTML file and paste your Firebase project config into the <code>firebaseConfig</code> object near the bottom of the file.
           </p>
@@ -921,7 +951,6 @@
             <li>Go to <strong>console.firebase.google.com</strong></li>
             <li>Create a project → Add a Web App</li>
             <li>Copy the config values into this file</li>
-            <li>Enable <strong>Authentication → Email/Password</strong></li>
             <li>Enable <strong>Firestore Database</strong></li>
             <li>Deploy <strong>firestore.rules</strong> from this folder</li>
           </ol>
@@ -931,16 +960,21 @@
   }
 
   firebase.initializeApp(firebaseConfig);
-  const auth = firebase.auth();
-  const db   = firebase.firestore();
+  const db = firebase.firestore();
   db.enablePersistence().catch(() => {}); // offline support
 
   /* ═══════════════════════════════════════════════════════════
      STATE
   ════════════════════════════════════════════════════════════ */
-  let currentUser        = null;
+  let currentEmployee    = null; // { employeeId, name }
   let currentClassroomId = null;
-  let classroomPIN       = '5700';
+  // auth state machine
+  let authStep       = 'login-id'; // login-id|login-pin|signup-name|signup-id|signup-pin|signup-confirm
+  let authIdBuf      = '';
+  let authPinBuf     = '';
+  let authConfirmBuf = '';
+  let authNameTemp   = '';
+  let classroomPIN       = '1234';
   let log                = [];
   let studentStatus      = {};
   let checkoutTimes      = {};
@@ -965,50 +999,219 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
-     AUTH
+     AUTH — Employee ID + PIN (no Firebase Auth)
   ════════════════════════════════════════════════════════════ */
-  function showLoginForm() {
-    document.getElementById('login-form').style.display  = '';
-    document.getElementById('signup-form').style.display = 'none';
-    document.getElementById('login-error').textContent   = '';
+  async function hashPIN(pin) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pin));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
-  function showSignupForm() {
-    document.getElementById('login-form').style.display  = 'none';
-    document.getElementById('signup-form').style.display = '';
-    document.getElementById('signup-error').textContent  = '';
+  function getSession()    { try { return JSON.parse(localStorage.getItem('pm_session') || 'null'); } catch { return null; } }
+  function setSession(emp) { localStorage.setItem('pm_session', JSON.stringify(emp)); }
+  function clearSession()  { localStorage.removeItem('pm_session'); }
+
+  function startLogin() {
+    authStep = 'login-id'; authIdBuf = ''; authPinBuf = '';
+    renderAuthStep();
+  }
+
+  function startSignup() {
+    authStep = 'signup-name'; authIdBuf = ''; authPinBuf = ''; authConfirmBuf = ''; authNameTemp = '';
+    document.getElementById('signup-name').value = '';
+    renderAuthStep();
+  }
+
+  function authBack() {
+    document.getElementById('auth-error').textContent = '';
+    if      (authStep === 'login-pin')      { authStep = 'login-id';      authPinBuf = ''; }
+    else if (authStep === 'signup-id')      { authStep = 'signup-name';   authIdBuf  = ''; }
+    else if (authStep === 'signup-pin')     { authStep = 'signup-id';     authPinBuf = ''; }
+    else if (authStep === 'signup-confirm') { authStep = 'signup-pin';    authConfirmBuf = ''; }
+    else { startLogin(); return; }
+    renderAuthStep();
+  }
+
+  function renderAuthStep() {
+    const titleEl    = document.getElementById('auth-step-title');
+    const backBtn    = document.getElementById('auth-back-btn');
+    const nameSection= document.getElementById('auth-name-section');
+    const idDisplay  = document.getElementById('auth-id-display');
+    const pinDots    = document.getElementById('auth-pin-dots');
+    const numpad     = document.getElementById('auth-numpad');
+    const actionBtn  = document.getElementById('auth-action-btn');
+    const switchEl   = document.getElementById('auth-mode-switch');
+    document.getElementById('auth-error').textContent = '';
+
+    nameSection.style.display = 'none';
+    idDisplay.style.display   = 'none';
+    pinDots.style.display     = 'none';
+    numpad.style.display      = 'none';
+    backBtn.style.display     = 'none';
+
+    switch (authStep) {
+      case 'login-id':
+        titleEl.textContent     = 'Employee ID';
+        idDisplay.style.display = '';
+        numpad.style.display    = '';
+        actionBtn.textContent   = 'Next';
+        switchEl.innerHTML      = 'Don\'t have an account? <span onclick="startSignup()">Create account</span>';
+        renderAuthIdDisplay();
+        break;
+      case 'login-pin':
+        titleEl.textContent    = 'PIN Number';
+        pinDots.style.display  = '';
+        numpad.style.display   = '';
+        backBtn.style.display  = '';
+        actionBtn.textContent  = 'Sign In';
+        switchEl.innerHTML     = '';
+        authPinBuf = ''; renderAuthPinDots();
+        break;
+      case 'signup-name':
+        titleEl.textContent       = 'Create Account';
+        nameSection.style.display = '';
+        switchEl.innerHTML        = 'Already have an account? <span onclick="startLogin()">Sign in</span>';
+        setTimeout(() => document.getElementById('signup-name').focus(), 50);
+        break;
+      case 'signup-id':
+        titleEl.textContent     = 'Employee ID';
+        idDisplay.style.display = '';
+        numpad.style.display    = '';
+        backBtn.style.display   = '';
+        actionBtn.textContent   = 'Next';
+        switchEl.innerHTML      = '';
+        authIdBuf = ''; renderAuthIdDisplay();
+        break;
+      case 'signup-pin':
+        titleEl.textContent   = 'Create PIN';
+        pinDots.style.display = '';
+        numpad.style.display  = '';
+        backBtn.style.display = '';
+        actionBtn.textContent = 'Next';
+        switchEl.innerHTML    = '';
+        authPinBuf = ''; renderAuthPinDots();
+        break;
+      case 'signup-confirm':
+        titleEl.textContent   = 'Confirm PIN';
+        pinDots.style.display = '';
+        numpad.style.display  = '';
+        backBtn.style.display = '';
+        actionBtn.textContent = 'Create Account';
+        switchEl.innerHTML    = '';
+        authConfirmBuf = ''; renderAuthPinDots();
+        break;
+    }
+  }
+
+  function renderAuthIdDisplay() {
+    document.getElementById('auth-id-display').textContent = authIdBuf || '—';
+  }
+
+  function renderAuthPinDots() {
+    const count = authStep === 'signup-confirm' ? authConfirmBuf.length : authPinBuf.length;
+    for (let i = 0; i < 4; i++)
+      document.getElementById('auth-dot-' + i).classList.toggle('filled', i < count);
+  }
+
+  function authNumpad(digit) {
+    if (authStep === 'login-id' || authStep === 'signup-id') {
+      if (authIdBuf.length >= 10) return;
+      authIdBuf += digit; renderAuthIdDisplay();
+    } else if (authStep === 'login-pin' || authStep === 'signup-pin') {
+      if (authPinBuf.length >= 4) return;
+      authPinBuf += digit; renderAuthPinDots();
+      if (authPinBuf.length === 4) setTimeout(authNext, 150);
+    } else if (authStep === 'signup-confirm') {
+      if (authConfirmBuf.length >= 4) return;
+      authConfirmBuf += digit; renderAuthPinDots();
+      if (authConfirmBuf.length === 4) setTimeout(authNext, 150);
+    }
+  }
+
+  function authNumpadDel() {
+    if (authStep === 'login-id' || authStep === 'signup-id') {
+      authIdBuf = authIdBuf.slice(0, -1); renderAuthIdDisplay();
+    } else if (authStep === 'login-pin' || authStep === 'signup-pin') {
+      authPinBuf = authPinBuf.slice(0, -1); renderAuthPinDots();
+    } else if (authStep === 'signup-confirm') {
+      authConfirmBuf = authConfirmBuf.slice(0, -1); renderAuthPinDots();
+    }
+  }
+
+  async function authNext() {
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = '';
+    if (authStep === 'signup-name') {
+      authNameTemp = document.getElementById('signup-name').value.trim();
+      if (!authNameTemp) { errEl.textContent = 'Please enter your name.'; return; }
+      authStep = 'signup-id'; renderAuthStep();
+    } else if (authStep === 'login-id') {
+      if (!authIdBuf) { errEl.textContent = 'Please enter your Employee ID.'; return; }
+      authStep = 'login-pin'; renderAuthStep();
+    } else if (authStep === 'signup-id') {
+      if (!authIdBuf) { errEl.textContent = 'Please enter your Employee ID.'; return; }
+      authStep = 'signup-pin'; renderAuthStep();
+    } else if (authStep === 'login-pin') {
+      if (authPinBuf.length < 4) { errEl.textContent = 'Please enter your 4-digit PIN.'; return; }
+      await doLogin();
+    } else if (authStep === 'signup-pin') {
+      if (authPinBuf.length < 4) { errEl.textContent = 'Please create a 4-digit PIN.'; return; }
+      authStep = 'signup-confirm'; renderAuthStep();
+    } else if (authStep === 'signup-confirm') {
+      if (authConfirmBuf.length < 4) { errEl.textContent = 'Please confirm your PIN.'; return; }
+      await doSignup();
+    }
   }
 
   async function doLogin() {
-    const email    = document.getElementById('login-email').value.trim();
-    const password = document.getElementById('login-password').value;
-    const errEl    = document.getElementById('login-error');
-    errEl.textContent = '';
-    if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; return; }
+    const errEl = document.getElementById('auth-error');
+    errEl.textContent = 'Signing in…';
     try {
-      await auth.signInWithEmailAndPassword(email, password);
+      const snap = await db.collection('employees').doc(authIdBuf).get();
+      if (!snap.exists) {
+        errEl.textContent = 'Employee ID not found.';
+        authStep = 'login-id'; renderAuthStep(); return;
+      }
+      const pinHash = await hashPIN(authPinBuf);
+      if (pinHash !== snap.data().pinHash) {
+        errEl.textContent = 'Incorrect PIN.';
+        authPinBuf = ''; renderAuthPinDots(); return;
+      }
+      const emp = { employeeId: authIdBuf, name: snap.data().name };
+      setSession(emp); currentEmployee = emp;
+      showView('classroom');
+      document.getElementById('cv-welcome').textContent = 'Welcome, ' + emp.name + '!';
+      loadClassrooms();
     } catch (e) {
-      errEl.textContent = friendlyAuthError(e.code);
+      document.getElementById('auth-error').textContent = 'Error signing in. Check your connection.';
     }
   }
 
   async function doSignup() {
-    const name     = document.getElementById('signup-name').value.trim();
-    const email    = document.getElementById('signup-email').value.trim();
-    const password = document.getElementById('signup-password').value;
-    const errEl    = document.getElementById('signup-error');
-    errEl.textContent = '';
-    if (!name || !email || !password) { errEl.textContent = 'Please fill in all fields.'; return; }
-    if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+    const errEl = document.getElementById('auth-error');
+    if (authPinBuf !== authConfirmBuf) {
+      errEl.textContent = 'PINs don\'t match. Try again.';
+      authStep = 'signup-pin'; renderAuthStep(); return;
+    }
+    errEl.textContent = 'Creating account…';
     try {
-      const cred = await auth.createUserWithEmailAndPassword(email, password);
-      await cred.user.updateProfile({ displayName: name });
-      await db.collection('teachers').doc(cred.user.uid).set({
-        displayName: name, email,
+      const existing = await db.collection('employees').doc(authIdBuf).get();
+      if (existing.exists) {
+        errEl.textContent = 'That Employee ID is already registered.';
+        authStep = 'signup-id'; renderAuthStep(); return;
+      }
+      const pinHash = await hashPIN(authPinBuf);
+      await db.collection('employees').doc(authIdBuf).set({
+        employeeId: authIdBuf, name: authNameTemp, pinHash,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
+      const emp = { employeeId: authIdBuf, name: authNameTemp };
+      setSession(emp); currentEmployee = emp;
+      showView('classroom');
+      document.getElementById('cv-welcome').textContent = 'Welcome, ' + emp.name + '!';
+      loadClassrooms();
     } catch (e) {
-      document.getElementById('signup-error').textContent = friendlyAuthError(e.code);
+      console.error('doSignup error:', e);
+      document.getElementById('auth-error').textContent = 'Error creating account. Check your connection.';
     }
   }
 
@@ -1017,47 +1220,33 @@
     detachListeners();
     currentClassroomId = null;
     log = []; studentStatus = {}; checkoutTimes = {}; roster = null;
-    await auth.signOut();
+    currentEmployee = null; clearSession();
+    startLogin(); showView('auth');
   }
 
-  function friendlyAuthError(code) {
-    const msgs = {
-      'auth/user-not-found':         'No account found with that email.',
-      'auth/wrong-password':         'Incorrect password.',
-      'auth/invalid-credential':     'Invalid email or password.',
-      'auth/email-already-in-use':   'An account with this email already exists.',
-      'auth/invalid-email':          'Please enter a valid email address.',
-      'auth/weak-password':          'Password must be at least 6 characters.',
-      'auth/too-many-requests':      'Too many attempts. Please try again later.',
-      'auth/network-request-failed': 'Network error. Check your connection.'
-    };
-    return msgs[code] || 'An error occurred. Please try again.';
-  }
-
-  /* Enter key support for auth forms */
+  /* Enter key support */
   document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('login-email').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('login-password').focus();
-    });
-    document.getElementById('login-password').addEventListener('keydown', e => {
-      if (e.key === 'Enter') doLogin();
-    });
-    document.getElementById('signup-password').addEventListener('keydown', e => {
-      if (e.key === 'Enter') doSignup();
+    document.getElementById('signup-name').addEventListener('keydown', e => {
+      if (e.key === 'Enter') authNext();
     });
     document.getElementById('new-classroom-name').addEventListener('keydown', e => {
       if (e.key === 'Enter') doCreateClassroom();
     });
   });
 
-  auth.onAuthStateChanged(user => {
-    currentUser = user;
-    if (!user) { showView('auth'); return; }
-    showView('classroom');
-    document.getElementById('cv-welcome').textContent =
-      'Welcome, ' + (user.displayName || user.email) + '!';
-    loadClassrooms();
-  });
+  /* ── Session init — runs once on page load ── */
+  (function() {
+    const session = getSession();
+    if (session && session.employeeId) {
+      currentEmployee = session;
+      showView('classroom');
+      document.getElementById('cv-welcome').textContent = 'Welcome, ' + session.name + '!';
+      loadClassrooms();
+    } else {
+      startLogin();
+      showView('auth');
+    }
+  })();
 
   /* ═══════════════════════════════════════════════════════════
      CLASSROOM MANAGEMENT
@@ -1077,7 +1266,7 @@
     list.innerHTML = '<p class="cv-loading">Loading your classrooms…</p>';
     try {
       const snap = await db.collection('classrooms')
-        .where('teacherId', '==', currentUser.uid)
+        .where('employeeId', '==', currentEmployee.employeeId)
         .get();
       list.innerHTML = '';
       if (snap.empty) {
@@ -1113,9 +1302,9 @@
     if (!name) { showToast('Please enter a classroom name', 'neutral'); return; }
     try {
       await db.collection('classrooms').add({
-        teacherId: currentUser.uid,
+        employeeId: currentEmployee.employeeId,
         name,
-        pin: '5700',
+        pin: '1234',
         settings: { maxMinutes: 15, maxDailyLeaves: 0, maxWeeklyLeaves: 0, forcedOrientation: null },
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -1151,7 +1340,7 @@
 
       const data = docSnap.data();
       currentClassroomId = classroomId;
-      classroomPIN       = data.pin || '5700';
+      classroomPIN       = data.pin || '1234';
 
       const s = data.settings || {};
       settings.maxMinutes        = s.maxMinutes        || 15;

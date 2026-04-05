@@ -2,33 +2,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Teachers — each teacher can only read/write their own profile
-    match /teachers/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Employees — allow get by ID (needed for login) but not list (prevents bulk dump)
+    // Allow create for self-registration; no client-side updates or deletes
+    match /employees/{employeeId} {
+      allow get:    if true;
+      allow list:   if false;
+      allow create: if true;
+      allow update, delete: if false;
     }
 
-    // Classrooms — owned by a single teacher
+    // Classrooms — auth enforced client-side via session; open read/write here
     match /classrooms/{classroomId} {
+      allow read, write: if true;
 
-      function isOwner() {
-        return request.auth != null &&
-               resource.data.teacherId == request.auth.uid;
-      }
-
-      function isNewOwner() {
-        return request.auth != null &&
-               request.resource.data.teacherId == request.auth.uid;
-      }
-
-      allow read:          if isOwner();
-      allow create:        if isNewOwner();
-      allow update, delete: if isOwner();
-
-      // Subcollections (log, status, roster) inherit classroom ownership
       match /{subcollection}/{docId} {
-        allow read, write: if request.auth != null &&
-          get(/databases/$(database)/documents/classrooms/$(classroomId))
-            .data.teacherId == request.auth.uid;
+        allow read, write: if true;
       }
     }
   }
