@@ -107,6 +107,27 @@
       }
     }
 
+    body.state-auth {
+      --page-bg:       #f6efff;
+      --card-bg:       #ffffff;
+      --card-bg2:      #efe2ff;
+      --accent:        #c084fc;
+      --accent-light:  #f3e8ff;
+      --accent-dark:   #7e22ce;
+      --accent2:       #d8b4fe;
+      --text:          #4c1d95;
+      --text-muted:    #7c6a9b;
+      --border:        rgba(192,132,252,0.18);
+      --border-med:    rgba(192,132,252,0.34);
+      --danger-bg:     #fdf2f8;
+      --danger-text:   #be185d;
+      --danger-border: #f9a8d4;
+      --grad-main:     linear-gradient(135deg, #c084fc, #d8b4fe);
+      --grad-start:    linear-gradient(135deg, #a855f7, #d8b4fe);
+      --shadow-card:   0 8px 28px rgba(168,85,247,0.12);
+      --shadow-btn:    0 6px 18px rgba(168,85,247,0.22);
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--page-bg);
@@ -996,6 +1017,11 @@
     document.getElementById('auth-view').style.display      = name === 'auth'      ? '' : 'none';
     document.getElementById('classroom-view').style.display = name === 'classroom' ? '' : 'none';
     document.getElementById('app').style.display            = name === 'scanner'   ? '' : 'none';
+    document.body.classList.toggle('state-auth', name === 'auth' || name === 'classroom');
+  }
+
+  function isVisible(id) {
+    return document.getElementById(id).style.display !== 'none';
   }
 
   /* ═══════════════════════════════════════════════════════════
@@ -1578,9 +1604,26 @@
     const tag = document.activeElement && document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA') return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key >= '0' && e.key <= '9') { e.preventDefault(); numpadPress(e.key); }
-    else if (e.key === 'Backspace')    { e.preventDefault(); numpadDelete(); }
-    else if (e.key === 'Enter')        { e.preventDefault(); manualLog(); }
+
+    const authVisible = isVisible('auth-view');
+    const scannerVisible = isVisible('app');
+
+    if (e.key >= '0' && e.key <= '9') {
+      e.preventDefault();
+      if (authVisible) authNumpad(e.key);
+      else if (scannerVisible) numpadPress(e.key);
+    } else if (e.key === 'Backspace') {
+      e.preventDefault();
+      if (authVisible) authNumpadDel();
+      else if (scannerVisible) numpadDelete();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (authVisible) authNext();
+      else if (scannerVisible) manualLog();
+    } else if (e.key === 'Escape' && pinMode) {
+      e.preventDefault();
+      hidePinPrompt();
+    }
   });
 
   /* ═══════════════════════════════════════════════════════════
