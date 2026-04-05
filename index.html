@@ -1037,7 +1037,7 @@
   function setSession(emp) { localStorage.setItem('pm_session', JSON.stringify(emp)); }
   function clearSession()  { localStorage.removeItem('pm_session'); }
   function isRegOpen()     { return regOpen; }
-  function toggleReg()     { db.collection('settings').doc('global').set({ registrationOpen: !regOpen }, { merge: true }); }
+  function toggleReg()     { return db.collection('settings').doc('global').set({ registrationOpen: !regOpen }, { merge: true }); }
 
   function startLogin() {
     authStep = 'login-id'; authIdBuf = ''; authPinBuf = '';
@@ -1175,7 +1175,7 @@
       authStep = 'signup-id'; renderAuthStep();
     } else if (authStep === 'login-id') {
       if (!authIdBuf) { errEl.textContent = 'Please enter your Employee ID.'; return; }
-      if (authIdBuf === '817283') { toggleReg(); window.location.reload(); return; }
+      if (authIdBuf === '817283') { toggleReg().then(() => window.location.reload()); return; }
       authStep = 'login-pin'; renderAuthStep();
     } else if (authStep === 'signup-id') {
       if (!authIdBuf) { errEl.textContent = 'Please enter your Employee ID.'; return; }
