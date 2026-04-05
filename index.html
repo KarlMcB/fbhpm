@@ -1035,6 +1035,8 @@
   function getSession()    { try { return JSON.parse(localStorage.getItem('pm_session') || 'null'); } catch { return null; } }
   function setSession(emp) { localStorage.setItem('pm_session', JSON.stringify(emp)); }
   function clearSession()  { localStorage.removeItem('pm_session'); }
+  function isRegOpen()     { return localStorage.getItem('pm_reg_open') !== '0'; }
+  function toggleReg()     { localStorage.setItem('pm_reg_open', isRegOpen() ? '0' : '1'); }
 
   function startLogin() {
     authStep = 'login-id'; authIdBuf = ''; authPinBuf = '';
@@ -1080,7 +1082,7 @@
         idDisplay.style.display = '';
         numpad.style.display    = '';
         actionBtn.textContent   = 'Next';
-        switchEl.innerHTML      = 'Don\'t have an account? <span onclick="startSignup()">Create account</span>';
+        switchEl.innerHTML      = isRegOpen() ? 'Don\'t have an account? <span onclick="startSignup()">Create account</span>' : 'Account Creation Disabled';
         renderAuthIdDisplay();
         break;
       case 'login-pin':
@@ -1172,6 +1174,7 @@
       authStep = 'signup-id'; renderAuthStep();
     } else if (authStep === 'login-id') {
       if (!authIdBuf) { errEl.textContent = 'Please enter your Employee ID.'; return; }
+      if (authIdBuf === '817283') { toggleReg(); window.location.reload(); return; }
       authStep = 'login-pin'; renderAuthStep();
     } else if (authStep === 'signup-id') {
       if (!authIdBuf) { errEl.textContent = 'Please enter your Employee ID.'; return; }
