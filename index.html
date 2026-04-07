@@ -1031,8 +1031,31 @@
   function getSession()    { try { return JSON.parse(localStorage.getItem('pm_session') || 'null'); } catch { return null; } }
   function setSession(emp) { localStorage.setItem('pm_session', JSON.stringify(emp)); }
   function clearSession()  { localStorage.removeItem('pm_session'); }
+  function getStoredRegOpen() {
+    try {
+      const saved = localStorage.getItem('pm_registration_open');
+      return saved === null ? true : saved !== 'false';
+    } catch {
+      return true;
+    }
+  }
+  function setStoredRegOpen(value) {
+    regOpen = value;
+    try { localStorage.setItem('pm_registration_open', value ? 'true' : 'false'); } catch {}
+  }
+  regOpen = getStoredRegOpen();
   function isRegOpen()     { return regOpen; }
-  function toggleReg()     { return db.collection('settings').doc('global').set({ registrationOpen: !regOpen }, { merge: true }); }
+  async function toggleReg() {
+    const next = !regOpen;
+    setStoredRegOpen(next);
+    if (authStep === 'login-id') renderAuthStep();
+    try {
+      await db.collection('settings').doc('global').set({ registrationOpen: next }, { merge: true });
+    } catch (e) {
+      console.error('toggleReg error:', e);
+    }
+    return next;
+  }
 
   function startLogin() {
     authStep = 'login-id'; authIdBuf = ''; authPinBuf = '';
@@ -1170,7 +1193,12 @@
       authStep = 'signup-id'; renderAuthStep();
     } else if (authStep === 'login-id') {
       if (!authIdBuf) { errEl.textContent = 'Please enter your Employee ID.'; return; }
-      if (authIdBuf === '817283') { toggleReg().then(() => window.location.reload()); return; }
+      if (authIdBuf === '817283') {
+        const next = await toggleReg();
+        authIdBuf = ''; renderAuthIdDisplay();
+        errEl.textContent = next ? 'Account creation enabled.' : 'Account creation disabled.';
+        return;
+      }
       authStep = 'login-pin'; renderAuthStep();
     } else if (authStep === 'signup-id') {
       if (!authIdBuf) { errEl.textContent = 'Please enter your Employee ID.'; return; }
@@ -1262,8 +1290,10 @@
   /* ── Sync registration flag from Firestore across all browsers ── */
   db.collection('settings').doc('global').onSnapshot(snap => {
     const data = snap.data();
-    regOpen = data ? data.registrationOpen !== false : true;
+    setStoredRegOpen(data ? data.registrationOpen !== false : true);
     if (authStep === 'login-id') renderAuthStep();
+  }, e => {
+    console.warn('registration settings listener unavailable:', e);
   });
 
   /* ── Session init — runs once on page load ── */
@@ -1607,8 +1637,13 @@
 
   /* Keyboard support — physical keyboard maps to the on-screen numpad */
   document.addEventListener('keydown', function(e) {
-    const tag = document.activeElement && document.activeElement.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    const activeEl = document.activeElement;
+    const tag = activeEl && activeEl.tagName;
+    const isVisibleInput = activeEl &&
+      (tag === 'INPUT' || tag === 'TEXTAREA') &&
+      activeEl.offsetParent !== null &&
+      getComputedStyle(activeEl).visibility !== 'hidden';
+    if (isVisibleInput) return;
     if (e.metaKey || e.ctrlKey || e.altKey) return;
 
     const authVisible = isVisible('auth-view');
