@@ -2,7 +2,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Employees — allow get by ID (needed for login) but not list (prevents bulk dump)
+    // Employees - allow get by ID (needed for login) but not list (prevents bulk dump)
     // Allow create for self-registration; no client-side updates or deletes
     match /employees/{employeeId} {
       allow get:    if true;
@@ -11,7 +11,12 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Classrooms — auth enforced client-side via session; open read/write here
+    // Settings - used for global app flags like registration availability
+    match /settings/{docId} {
+      allow read, write: if true;
+    }
+
+    // Classrooms - auth enforced client-side via session; open read/write here
     match /classrooms/{classroomId} {
       allow read, write: if true;
 
