@@ -1847,11 +1847,17 @@
     }
 
     /* Conflict check */
-    let incident = '';
     if (action === 'out' && Object.values(studentStatus).some(v => v === 'out')) {
-      incident = 'Someone is already checked out';
+      writeToFirestore({
+        date: new Date().toLocaleDateString(), time: fmt(new Date()),
+        id, name, action: 'denied', minsGone: null, checkoutTimestamp: null,
+        incident: 'Someone is already checked out'
+      });
       showConflictWarning();
+      if (fromCamera) setTimeout(() => stopCamera(), 300);
+      return;
     }
+    let incident = '';
 
     /* Compute minsGone */
     let minsGone = null;
