@@ -2075,9 +2075,9 @@
   }
 
   async function exportActivityLog() {
-    if (!classroomId) return;
+    if (!currentClassroomId) return;
     closeSettings();
-    const snap = await db.collection('classrooms').doc(classroomId)
+    const snap = await db.collection('classrooms').doc(currentClassroomId)
       .collection('log')
       .orderBy('timestamp', 'desc')
       .get();
@@ -2090,11 +2090,14 @@
     });
     const csv = [headers.map(h => `"${h}"`), ...rows].map(r => r.join(',')).join('\n');
     const today = new Date().toISOString().slice(0, 10);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.href = url;
     a.download = `activity-log-${today}.csv`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   }
 
   /* ═══════════════════════════════════════════════════════════
