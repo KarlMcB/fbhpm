@@ -804,6 +804,7 @@
       <hr class="setting-divider" />
       <div class="setting-section-title">Data</div>
       <button class="settings-action-btn" onclick="openLogViewer()">View activity log</button>
+      <button class="settings-action-btn" onclick="exportActivityLog()">Export activity log</button>
       <button class="settings-action-btn" onclick="openRosterManager()">Manage student roster</button>
 
       <hr class="setting-divider" />
@@ -2071,6 +2072,29 @@
   function closeLogViewer() { document.getElementById('log-viewer-overlay').classList.remove('open'); }
   function logViewerOverlayClick(e) {
     if (e.target === document.getElementById('log-viewer-overlay')) closeLogViewer();
+  }
+
+  async function exportActivityLog() {
+    if (!classroomId) return;
+    closeSettings();
+    const snap = await db.collection('classrooms').doc(classroomId)
+      .collection('log')
+      .orderBy('timestamp', 'desc')
+      .get();
+    const headers = ['Date', 'Time', 'Student ID', 'Name', 'Action', 'Mins Gone', 'Incident'];
+    const rows = snap.docs.map(doc => {
+      const d = doc.data();
+      return [d.date, d.time, d.id, d.name, d.action,
+              d.minsGone != null ? d.minsGone : '', d.incident || '']
+        .map(v => `"${String(v ?? '').replace(/"/g, '""')}"`);
+    });
+    const csv = [headers.map(h => `"${h}"`), ...rows].map(r => r.join(',')).join('\n');
+    const today = new Date().toISOString().slice(0, 10);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    a.download = `activity-log-${today}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   /* ═══════════════════════════════════════════════════════════
