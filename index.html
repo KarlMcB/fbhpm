@@ -545,6 +545,7 @@
       background: rgba(5, 40, 20, 0.82); transition: background 0.5s ease;
     }
     body.state-out #status-overlay { background: rgba(76, 5, 25, 0.82); }
+    body.camera-on #status-overlay { display: none; }
     .status-msg { font-size: 20px; font-weight: 700; color: #fff; line-height: 1.4; text-shadow: 0 2px 8px rgba(0,0,0,0.5); max-width: 28ch; }
     .status-green { display: block; }
     .status-red   { display: none; }
@@ -1772,6 +1773,7 @@
     const video = document.getElementById('video');
     if (video.srcObject) { video.srcObject.getTracks().forEach(t => t.stop()); video.srcObject = null; }
     cameraOn = false;
+    document.body.classList.remove('camera-on');
     document.getElementById('scan-line').classList.remove('active');
     const btn = document.getElementById('start-btn');
     btn.textContent  = 'Start scanning';
@@ -1796,6 +1798,7 @@
           if (result) recordScan(result.getText(), true);
         });
         cameraOn = true;
+        document.body.classList.add('camera-on');
         document.getElementById('scan-line').classList.add('active');
         btn.textContent   = 'Stop scanning';
         btn.style.cssText = 'background:var(--danger-bg);color:var(--danger-text);border-color:var(--danger-border);font-weight:600;';
