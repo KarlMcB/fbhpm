@@ -1,0 +1,90 @@
+% Campaign Poster — 24" × 36"
+% Compile with: pdflatex campaign-poster.tex
+\documentclass{article}
+
+\usepackage[
+  paperwidth=24in,
+  paperheight=36in,
+  left=0.75in, right=0.75in,
+  top=0.75in,  bottom=0.75in
+]{geometry}
+
+\usepackage{graphicx}
+\usepackage[T1]{fontenc}
+\usepackage{xcolor}
+
+% Helvetica (Nimbus Sans) — clean, bold sans-serif
+\usepackage{helvet}
+\renewcommand\familydefault{\sfdefault}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+
+% ── Palette ────────────────────────────────────────────────────────────────────
+\definecolor{navy}{RGB}{10,25,60}
+\definecolor{scarlet}{RGB}{196,18,48}
+\definecolor{cream}{RGB}{245,240,225}
+\definecolor{gold}{RGB}{214,174,60}
+% ───────────────────────────────────────────────────────────────────────────────
+
+\begin{document}
+\pagecolor{navy}
+
+% Full-bleed vertical stripe accents (left and right gutters)
+\begin{picture}(0,0)
+  \put(-54,0){\color{scarlet}\rule{18pt}{36in}}
+  \put(1680,0){\color{scarlet}\rule{18pt}{36in}}
+\end{picture}
+
+% ── Main content: minipage spans full text height, \vfill distributes space ───
+\noindent
+\begin{minipage}[t][\textheight][s]{\textwidth}
+
+  \vfill
+
+  % ── Line 1: MCBURNETT — longest word, sets the baseline width ──────────────
+  \noindent
+  {\color{cream}%
+   \resizebox{\textwidth}{!}{\bfseries\fontsize{500}{500}\selectfont MCBURNETT}}
+
+  \vfill
+
+  % ── Thin rule ──────────────────────────────────────────────────────────────
+  \noindent{\color{gold}\rule{\textwidth}{4pt}}
+
+  \vfill
+
+  % ── Line 2: THE NERD — accent color, slightly taller naturally ─────────────
+  \noindent
+  {\color{scarlet}%
+   \resizebox{\textwidth}{!}{\bfseries\fontsize{500}{500}\selectfont THE NERD}}
+
+  \vfill
+
+  % ── Thin rule ──────────────────────────────────────────────────────────────
+  \noindent{\color{gold}\rule{\textwidth}{4pt}}
+
+  \vfill
+
+  % ── Line 3: WE NEED ────────────────────────────────────────────────────────
+  \noindent
+  {\color{cream}%
+   \resizebox{\textwidth}{!}{\bfseries\fontsize{500}{500}\selectfont WE NEED}}
+
+  \vfill
+
+  % ── Thin rule ──────────────────────────────────────────────────────────────
+  \noindent{\color{gold}\rule{\textwidth}{4pt}}
+
+  \vfill
+
+  % ── Line 4: NOW — fewest chars → tallest line, dominant visual anchor ──────
+  \noindent
+  {\color{gold}%
+   \resizebox{\textwidth}{!}{\bfseries\fontsize{500}{500}\selectfont NOW}}
+
+  \vfill
+
+\end{minipage}
+
+\end{document}
