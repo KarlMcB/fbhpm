@@ -1026,6 +1026,7 @@
   let pinBuffer          = '';
   let unsubStatus        = null;
   let unsubLog           = null;
+  let incidentFired      = new Set();
   let regOpen            = true;
 
   /* ═══════════════════════════════════════════════════════════
@@ -1439,7 +1440,7 @@
       document.getElementById('setting-max-weekly').value     = settings.maxWeeklyLeaves;
       document.getElementById('classroom-name-label').textContent = data.name || 'Classroom';
 
-      log = []; studentStatus = {}; checkoutTimes = {}; roster = null;
+      log = []; studentStatus = {}; checkoutTimes = {}; roster = null; incidentFired = new Set();
       lastScanned = ''; lastScanTime = 0;
 
       await loadRoster(classroomId);
@@ -1458,7 +1459,7 @@
     if (cameraOn) stopCamera();
     detachListeners();
     currentClassroomId = null;
-    log = []; studentStatus = {}; checkoutTimes = {}; roster = null;
+    log = []; studentStatus = {}; checkoutTimes = {}; roster = null; incidentFired = new Set();
     closeSettings();
     showView('classroom');
     loadClassrooms();
@@ -1480,6 +1481,7 @@
           const d = doc.data();
           newStatus[doc.id] = d.status;
           if (d.status === 'out' && d.checkoutTimestamp) newTimes[doc.id] = d.checkoutTimestamp;
+          if (d.status === 'in') incidentFired.delete(doc.id);
         });
         studentStatus = newStatus;
         checkoutTimes = newTimes;
@@ -1496,12 +1498,15 @@
       .onSnapshot(snap => {
         log = snap.docs.map(doc => {
           const d = doc.data();
+          if (d.action === 'out' && d.incident) incidentFired.add(String(d.id));
           return {
+            _docId: doc.id,
             date: d.date, time: d.time, id: d.id, name: d.name,
             action: d.action, minsGone: d.minsGone,
             checkoutTimestamp: d.checkoutTimestamp, incident: d.incident || ''
           };
         });
+        checkTimeIncidents();
       });
   }
 
@@ -1900,8 +1905,13 @@
       }
     }
 
-    /* Conflict check */
-    if (action === 'out' && Object.values(studentStatus).some(v => v === 'out')) {
+    /* Conflict check — only block if there's a student out within the time limit */
+    const studentBlockingCheckout = Object.entries(studentStatus).some(([sid, v]) => {
+      if (v !== 'out') return false;
+      if (!checkoutTimes[sid]) return true;
+      return minsElapsed(checkoutTimes[sid]) < settings.maxMinutes;
+    });
+    if (action === 'out' && studentBlockingCheckout) {
       writeToFirestore({
         date: new Date().toLocaleDateString(), time: fmt(new Date()),
         id, name, action: 'denied', minsGone: null, checkoutTimestamp: null,
@@ -1919,7 +1929,7 @@
 
     /* Optimistic local update for immediate UI feedback */
     if (action === 'out') { studentStatus[id] = 'out'; checkoutTimes[id] = now; }
-    else                  { studentStatus[id] = 'in';  delete checkoutTimes[id]; }
+    else                  { studentStatus[id] = 'in';  delete checkoutTimes[id]; incidentFired.delete(id); }
     updateTable();
     updateTheme();
 
@@ -1957,6 +1967,24 @@
     document.body.classList.toggle('state-out', anyActiveOut);
   }
 
+  function checkTimeIncidents() {
+    if (!currentClassroomId) return;
+    const maxMins = settings.maxMinutes;
+    for (const [id, status] of Object.entries(studentStatus)) {
+      if (status !== 'out') continue;
+      if (!checkoutTimes[id]) continue;
+      if (minsElapsed(checkoutTimes[id]) < maxMins) continue;
+      if (incidentFired.has(id)) continue;
+      const entry = log.find(e => e.id === id && e.action === 'out' && !e.incident);
+      if (!entry || !entry._docId) continue;
+      incidentFired.add(id);
+      db.collection('classrooms').doc(currentClassroomId)
+        .collection('log').doc(entry._docId)
+        .update({ incident: `Absent over ${maxMins}-minute limit` })
+        .catch(() => {});
+    }
+  }
+
   function updateTable() {
     const tbody   = document.getElementById('log-body');
     const maxMins = settings.maxMinutes;
@@ -1988,7 +2016,7 @@
 
   /* Keep elapsed times ticking */
   setInterval(() => {
-    if (Object.values(studentStatus).some(v => v === 'out')) { updateTable(); updateTheme(); }
+    if (Object.values(studentStatus).some(v => v === 'out')) { updateTable(); updateTheme(); checkTimeIncidents(); }
   }, 10000);
 
   /* ═══════════════════════════════════════════════════════════
@@ -2012,7 +2040,7 @@
         statusSnap.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
       }
-      log = []; studentStatus = {}; checkoutTimes = {}; lastScanned = '';
+      log = []; studentStatus = {}; checkoutTimes = {}; lastScanned = ''; incidentFired = new Set();
       updateTable(); updateTheme();
       closeSettings();
       showToast('Log cleared', 'neutral');
