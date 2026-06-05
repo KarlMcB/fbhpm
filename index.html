@@ -794,11 +794,11 @@
       </div>
 
       <div class="setting-group">
-        <div class="setting-label">Max leaves per 7 days</div>
+        <div class="setting-label">Max leaves per week (Sun–Sat)</div>
         <div class="setting-desc">Students who exceed this will be denied. 0 = no limit.</div>
         <div class="setting-input-row">
           <input type="number" id="setting-max-weekly" inputmode="numeric" min="0" max="50" value="0" />
-          <span class="setting-unit">per 7 days</span>
+          <span class="setting-unit">per week</span>
         </div>
       </div>
 
@@ -1763,7 +1763,7 @@
   function showLimitDeniedMessage(type) {
     document.getElementById('limit-denied-sub').textContent = type === 'daily'
       ? 'This student has reached their daily leave limit'
-      : 'This student has reached their 7-day leave limit';
+      : 'This student has reached their weekly leave limit';
     const el = document.getElementById('limit-denied-overlay');
     el.classList.add('show');
     clearTimeout(el._timer);
@@ -1844,7 +1844,7 @@
   async function countCheckoutsInPeriod(studentId, period) {
     const cutoff = new Date();
     if (period === 'today') cutoff.setHours(0, 0, 0, 0);
-    else cutoff.setTime(cutoff.getTime() - 7 * 24 * 60 * 60 * 1000);
+    else { cutoff.setHours(0, 0, 0, 0); cutoff.setDate(cutoff.getDate() - cutoff.getDay()); }
     try {
       const snap = await db.collection('classrooms').doc(currentClassroomId)
         .collection('log')
@@ -1859,7 +1859,8 @@
         const today = new Date().toLocaleDateString();
         return log.filter(e => e.id === studentId && e.action === 'out' && e.date === today).length;
       }
-      const cutoffMs = cutoff.getTime();
+      const weekStart = new Date(); weekStart.setHours(0,0,0,0); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const cutoffMs = weekStart.getTime();
       return log.filter(e => {
         if (e.id !== studentId || e.action !== 'out') return false;
         if (e.checkoutTimestamp) return e.checkoutTimestamp >= cutoffMs;
@@ -1917,7 +1918,7 @@
         writeToFirestore({
           date: new Date().toLocaleDateString(), time: fmt(new Date()),
           id, name, action: 'denied', minsGone: null, checkoutTimestamp: null,
-          incident: deniedReason === 'daily' ? 'Daily leave limit reached' : '7-day leave limit reached'
+          incident: deniedReason === 'daily' ? 'Daily leave limit reached' : 'weekly leave limit reached'
         });
         showLimitDeniedMessage(deniedReason);
         if (fromCamera) setTimeout(() => stopCamera(), 300);
