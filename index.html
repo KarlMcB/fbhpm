@@ -106,6 +106,95 @@
       }
     }
 
+    /* ── Explicit dark-mode override (ignores system preference) ── */
+    body.theme-dark {
+      --page-bg:      #052e16;
+      --card-bg:      #0f2d1f;
+      --card-bg2:     #0a2418;
+      --accent:       #4ade80;
+      --accent-light: #14532d;
+      --accent-dark:  #86efac;
+      --accent2:      #86efac;
+      --text:         #f0fdf4;
+      --text-muted:   #6b7280;
+      --border:       rgba(74,222,128,0.12);
+      --border-med:   rgba(74,222,128,0.28);
+      --out-bg:       #431407;
+      --out-text:     #FDBA74;
+      --out-border:   #C2410C;
+      --in-bg:        #052E16;
+      --in-text:      #86EFAC;
+      --in-border:    #166534;
+      --danger-bg:    #4C0519;
+      --danger-text:  #FDA4AF;
+      --danger-border:#9F1239;
+      --grad-main:    linear-gradient(135deg, #4ade80, #86efac);
+      --grad-start:   linear-gradient(135deg, #16a34a, #4ade80);
+      --shadow-card:  0 4px 20px rgba(0,0,0,0.4);
+      --shadow-btn:   0 2px 10px rgba(74,222,128,0.3);
+    }
+    body.theme-dark.state-out {
+      --page-bg:      #4c0519;
+      --card-bg:      #2d0a12;
+      --card-bg2:     #230810;
+      --accent:       #f87171;
+      --accent-light: #7f1d1d;
+      --accent-dark:  #fca5a5;
+      --accent2:      #fca5a5;
+      --text:         #fff1f2;
+      --border:       rgba(248,113,113,0.12);
+      --border-med:   rgba(248,113,113,0.28);
+      --grad-main:    linear-gradient(135deg, #f87171, #fca5a5);
+      --grad-start:   linear-gradient(135deg, #dc2626, #f87171);
+      --shadow-card:  0 4px 20px rgba(0,0,0,0.4);
+      --shadow-btn:   0 2px 10px rgba(248,113,113,0.3);
+    }
+    /* ── Explicit light-mode override (cancels system dark preference) ── */
+    @media (prefers-color-scheme: dark) {
+      body.theme-light {
+        --page-bg:       #f0fdf4;
+        --card-bg:       #ffffff;
+        --card-bg2:      #f0fdf4;
+        --accent:        #16a34a;
+        --accent-light:  #dcfce7;
+        --accent-dark:   #15803d;
+        --accent2:       #4ade80;
+        --text:          #14532d;
+        --text-muted:    #6b7280;
+        --border:        rgba(22,163,74,0.12);
+        --border-med:    rgba(22,163,74,0.28);
+        --out-bg:        #FFF7ED;
+        --out-text:      #C2410C;
+        --out-border:    #FB923C;
+        --in-bg:         #F0FDF4;
+        --in-text:       #15803D;
+        --in-border:     #4ADE80;
+        --danger-bg:     #FFF1F2;
+        --danger-text:   #BE123C;
+        --danger-border: #FB7185;
+        --grad-main:     linear-gradient(135deg, #16a34a, #4ade80);
+        --grad-start:    linear-gradient(135deg, #15803d, #16a34a);
+        --shadow-card:   0 4px 20px rgba(22,163,74,0.10);
+        --shadow-btn:    0 2px 10px rgba(22,163,74,0.30);
+      }
+      body.theme-light.state-out {
+        --page-bg:       #fff1f2;
+        --card-bg:       #ffffff;
+        --card-bg2:      #fff1f2;
+        --accent:        #dc2626;
+        --accent-light:  #fee2e2;
+        --accent-dark:   #991b1b;
+        --accent2:       #f87171;
+        --text:          #450a0a;
+        --border:        rgba(220,38,38,0.12);
+        --border-med:    rgba(220,38,38,0.28);
+        --grad-main:     linear-gradient(135deg, #dc2626, #f87171);
+        --grad-start:    linear-gradient(135deg, #991b1b, #dc2626);
+        --shadow-card:   0 4px 20px rgba(220,38,38,0.10);
+        --shadow-btn:    0 2px 10px rgba(220,38,38,0.30);
+      }
+    }
+
     body.state-auth {
       --page-bg:       #f6efff;
       --card-bg:       #ffffff;
@@ -357,6 +446,20 @@
       font-size: 14px; font-weight: 500; cursor: pointer;
     }
     #switch-classroom-btn:active { transform: scale(0.97); }
+    .setting-toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .setting-toggle { position: relative; width: 44px; height: 26px; flex-shrink: 0; }
+    .setting-toggle input { opacity: 0; width: 0; height: 0; }
+    .setting-toggle-track {
+      position: absolute; inset: 0; border-radius: 13px;
+      background: var(--sp-border); cursor: pointer; transition: background 0.2s;
+    }
+    .setting-toggle-track::after {
+      content: ''; position: absolute; left: 3px; top: 3px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #fff; transition: transform 0.2s;
+    }
+    .setting-toggle input:checked + .setting-toggle-track { background: var(--sp-accent); }
+    .setting-toggle input:checked + .setting-toggle-track::after { transform: translateX(18px); }
     #clear-log-btn {
       width: 100%; padding: 10px; background: var(--danger-bg);
       color: var(--danger-text); border: 1.5px solid var(--danger-border);
@@ -806,6 +909,16 @@
         <div class="setting-label">Screen orientation</div>
         <div class="setting-desc">Force the app to stay in a specific orientation.</div>
         <button id="orientation-toggle-btn" onclick="toggleOrientation()">⟳ Auto</button>
+      </div>
+
+      <div class="setting-group">
+        <div class="setting-toggle-row">
+          <div class="setting-label" style="margin-bottom:0">Dark mode</div>
+          <label class="setting-toggle">
+            <input type="checkbox" id="setting-dark-mode" onchange="applyTheme()" />
+            <span class="setting-toggle-track"></span>
+          </label>
+        </div>
       </div>
 
       <button id="save-settings" onclick="saveSettings()">Save settings</button>
@@ -1552,7 +1665,31 @@
   /* ═══════════════════════════════════════════════════════════
      SETTINGS
   ════════════════════════════════════════════════════════════ */
-  function openSettings()  { showPinPrompt(); }
+  function applyTheme() {
+    const dark = document.getElementById('setting-dark-mode').checked;
+    document.body.classList.toggle('theme-dark', dark);
+    document.body.classList.toggle('theme-light', !dark);
+    try { localStorage.setItem('pm_dark_mode', dark ? '1' : '0'); } catch {}
+  }
+
+  (function restoreTheme() {
+    const saved = localStorage.getItem('pm_dark_mode');
+    if (saved === null) return; // follow system preference
+    const dark = saved === '1';
+    document.body.classList.toggle('theme-dark', dark);
+    document.body.classList.toggle('theme-light', !dark);
+    const cb = document.getElementById('setting-dark-mode');
+    if (cb) cb.checked = dark;
+  })();
+
+  function openSettings() {
+    const saved = localStorage.getItem('pm_dark_mode');
+    const dark = saved === null
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+      : saved === '1';
+    document.getElementById('setting-dark-mode').checked = dark;
+    showPinPrompt();
+  }
   function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
   function overlayClick(e) {
     if (e.target === document.getElementById('settings-overlay')) closeSettings();
