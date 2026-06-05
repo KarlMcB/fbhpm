@@ -927,7 +927,12 @@
       <div class="setting-section-title">Data</div>
       <button class="settings-action-btn" onclick="openLogViewer()">View activity log</button>
       <button class="settings-action-btn" onclick="exportActivityLog()">Export activity log</button>
+      <button class="settings-action-btn" onclick="triggerImportLog()">Import activity log</button>
       <button class="settings-action-btn" onclick="openRosterManager()">Manage student roster</button>
+      <button class="settings-action-btn" onclick="triggerImportRoster()">Import student roster</button>
+      <button class="settings-action-btn" onclick="exportRoster()">Export student roster</button>
+      <input type="file" id="import-log-input"    accept=".csv"       style="display:none" onchange="handleImportLog(event)" />
+      <input type="file" id="import-roster-input" accept=".csv,.txt"  style="display:none" onchange="handleImportRoster(event)" />
 
       <hr class="setting-divider" />
       <div class="setting-section-title">Danger zone</div>
@@ -947,7 +952,7 @@
       <textarea id="roster-textarea" placeholder="12345,Jane Doe&#10;67890,John Smith&#10;11111"></textarea>
       <p id="roster-count" style="font-size:12px;color:var(--text-muted);margin-top:6px;"></p>
       <button id="roster-save-btn" onclick="saveRoster()">Save Roster</button>
-      <button id="roster-clear-btn" onclick="clearRoster()">Clear Roster (accept any ID)</button>
+<button id="roster-clear-btn" onclick="clearRoster()">Clear Roster (accept any ID)</button>
     </div>
   </div>
 
@@ -1724,7 +1729,6 @@
       if (newName) document.getElementById('classroom-name-label').textContent = newName;
       document.getElementById('setting-pin').value = '';
       applyOrientation();
-      closeSettings();
       showToast('Settings saved', 'neutral');
     } catch (e) {
       showToast('Error saving settings', 'neutral');
@@ -1845,9 +1849,10 @@
       e.preventDefault();
       if (authVisible) authNext();
       else if (scannerVisible) manualLog();
-    } else if (e.key === 'Escape' && pinMode) {
+    } else if (e.key === 'Escape') {
       e.preventDefault();
-      hidePinPrompt();
+      if (pinMode) hidePinPrompt();
+      else if (document.getElementById('settings-overlay').classList.contains('open')) closeSettings();
     }
   });
 
@@ -2200,7 +2205,6 @@
       }
       log = []; studentStatus = {}; checkoutTimes = {}; lastScanned = ''; incidentFired = new Set();
       updateTable(); updateTheme();
-      closeSettings();
       showToast('Log cleared', 'neutral');
     } catch (e) {
       showToast('Error clearing log', 'neutral');
@@ -2234,7 +2238,6 @@
      ACTIVITY LOG VIEWER
   ════════════════════════════════════════════════════════════ */
   function openLogViewer() {
-    closeSettings();
     const overlay = document.getElementById('log-viewer-overlay');
     const body    = document.getElementById('log-viewer-body');
     overlay.classList.add('open');
@@ -2267,7 +2270,6 @@
 
   async function exportActivityLog() {
     if (!currentClassroomId) return;
-    closeSettings();
     const snap = await db.collection('classrooms').doc(currentClassroomId)
       .collection('log')
       .orderBy('timestamp', 'desc')
@@ -2292,10 +2294,139 @@
   }
 
   /* ═══════════════════════════════════════════════════════════
+     IMPORT — ACTIVITY LOG
+  ════════════════════════════════════════════════════════════ */
+  function triggerImportLog() {
+    document.getElementById('import-log-input').value = '';
+    document.getElementById('import-log-input').click();
+  }
+
+  async function handleImportLog(event) {
+    const file = event.target.files[0];
+    if (!file || !currentClassroomId) return;
+    const text = await file.text();
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+    if (lines.length < 2) { showToast('CSV appears empty', 'neutral'); return; }
+
+    /* Parse header row — find column positions by name (case-insensitive) */
+    const parseCSVRow = row => {
+      const cols = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < row.length; i++) {
+        const ch = row[i];
+        if (ch === '"') { inQ = !inQ; }
+        else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+        else { cur += ch; }
+      }
+      cols.push(cur);
+      return cols.map(c => c.trim());
+    };
+
+    const headers = parseCSVRow(lines[0]).map(h => h.replace(/^"|"$/g, '').toLowerCase());
+    const col = name => headers.indexOf(name);
+    const iDate = col('date'), iTime = col('time'), iId = col('student id'),
+          iName = col('name'), iAction = col('action'),
+          iMins = col('mins gone'), iIncident = col('incident');
+
+    if (iDate === -1 || iId === -1 || iAction === -1) {
+      showToast('Unrecognised CSV format', 'neutral'); return;
+    }
+
+    const entries = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVRow(lines[i]).map(c => c.replace(/^"|"$/g, ''));
+      const action = (cols[iAction] || '').toLowerCase();
+      if (!['out', 'in', 'denied'].includes(action)) continue;
+      entries.push({
+        date:              cols[iDate]    || '',
+        time:              cols[iTime]    || '',
+        id:                cols[iId]      || '',
+        name:              iName    >= 0 ? cols[iName]    : '',
+        action,
+        minsGone:          iMins    >= 0 && cols[iMins] !== '' ? Number(cols[iMins]) : null,
+        incident:          iIncident >= 0 ? cols[iIncident] : '',
+        checkoutTimestamp: null,
+        timestamp:         firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    if (entries.length === 0) { showToast('No valid rows found in CSV', 'neutral'); return; }
+
+    if (!confirm(`Import ${entries.length} log entries into this classroom?\n\nExisting records are kept — this only adds new rows.`)) return;
+
+    try {
+      const logRef = db.collection('classrooms').doc(currentClassroomId).collection('log');
+      /* Write in batches of 400 */
+      for (let i = 0; i < entries.length; i += 400) {
+        const batch = db.batch();
+        entries.slice(i, i + 400).forEach(e => batch.set(logRef.doc(), e));
+        await batch.commit();
+      }
+      showToast(`Imported ${entries.length} log entries ✓`, 'neutral');
+    } catch (e) {
+      console.error('importLog error:', e);
+      showToast('Error importing log', 'neutral');
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     IMPORT — STUDENT ROSTER
+  ════════════════════════════════════════════════════════════ */
+  function triggerImportRoster() {
+    document.getElementById('import-roster-input').value = '';
+    document.getElementById('import-roster-input').click();
+  }
+
+  async function handleImportRoster(event) {
+    const file = event.target.files[0];
+    if (!file || !currentClassroomId) return;
+    const text = await file.text();
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+
+    /* Accept either plain "ID,Name" text or a CSV with a header row */
+    let startLine = 0;
+    const firstCols = lines[0].split(',').map(c => c.replace(/^"|"$/g, '').trim().toLowerCase());
+    if (firstCols[0] === 'id' || firstCols[0] === 'student id') startLine = 1; // skip header
+
+    const entries = [];
+    for (let i = startLine; i < lines.length; i++) {
+      const line = lines[i].replace(/^"|"$/g, '');
+      const idx  = line.indexOf(',');
+      const id   = idx === -1 ? line.trim() : line.slice(0, idx).trim();
+      const name = idx === -1 ? '' : line.slice(idx + 1).trim().replace(/^"|"$/g, '');
+      if (id) entries.push({ id, name });
+    }
+
+    if (entries.length === 0) { showToast('No valid entries found', 'neutral'); return; }
+
+    if (!confirm(`Import ${entries.length} students as the roster for this classroom?\n\nThis will REPLACE the existing roster.`)) return;
+
+    try {
+      const rosterRef = db.collection('classrooms').doc(currentClassroomId).collection('roster');
+      /* Delete existing */
+      const existing = await rosterRef.get();
+      if (!existing.empty) {
+        const batch = db.batch();
+        existing.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+      }
+      /* Write new */
+      const batch = db.batch();
+      entries.forEach(e => batch.set(rosterRef.doc(e.id), { id: e.id, name: e.name }));
+      await batch.commit();
+      roster = new Map(entries.map(e => [e.id, e.name]));
+      showToast(`Roster imported: ${entries.length} student${entries.length !== 1 ? 's' : ''} ✓`, 'neutral');
+    } catch (e) {
+      console.error('importRoster error:', e);
+      showToast('Error importing roster', 'neutral');
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════
      ROSTER MANAGER
   ════════════════════════════════════════════════════════════ */
   async function openRosterManager() {
-    closeSettings();
     const overlay  = document.getElementById('roster-overlay');
     const textarea = document.getElementById('roster-textarea');
     textarea.value = '';
@@ -2318,6 +2449,20 @@
   }
 
   function closeRosterManager() { document.getElementById('roster-overlay').classList.remove('open'); }
+
+  function exportRoster() {
+    if (!roster || roster.size === 0) { showToast('No roster to export', 'neutral'); return; }
+    const rows = ['"ID","Name"'];
+    roster.forEach((name, id) => rows.push(`"${id}","${name.replace(/"/g, '""')}"`));
+    const csv = rows.join('\n');
+    const today = new Date().toISOString().slice(0, 10);
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `roster-${today}.csv`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
   function rosterOverlayClick(e) {
     if (e.target === document.getElementById('roster-overlay')) closeRosterManager();
   }
